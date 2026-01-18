@@ -1,5 +1,5 @@
 import express, { Router } from 'express';
-import { register } from '../controllers/authController.js';
+import { register, login } from '../controllers/authController.js';
 
 /**
  * Authentication Routes
@@ -35,5 +35,35 @@ const router: Router = express.Router();
  * 500 - Server error
  */
 router.post('/register', register);
+
+/**
+ * POST /api/v1/auth/login
+ * Authenticate user and return JWT tokens
+ *
+ * Request body:
+ * {
+ *   email: string (required, valid email format)
+ *   password: string (required, min 1 char)
+ * }
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     _id: string
+ *     email: string
+ *     name?: string
+ *     createdAt: Date
+ *     accessToken: string (JWT, 15min expiry)
+ *     refreshToken: string (JWT, 7d expiry)
+ *   }
+ * }
+ *
+ * Error responses:
+ * 400 - Validation error (invalid email, password required)
+ * 401 - Unauthorized (invalid email or password)
+ * 500 - Server error
+ */
+router.post('/login', login);
 
 export default router;
