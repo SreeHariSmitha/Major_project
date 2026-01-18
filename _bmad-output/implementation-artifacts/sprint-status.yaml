@@ -44,15 +44,15 @@ development_status:
   # ═══════════════════════════════════════════════════════════════════
   # EPIC 1: Foundation - Authentication & Onboarding
   # ═══════════════════════════════════════════════════════════════════
-  epic-1: in-progress
+  epic-1: done
   1-1-user-registration: done
   1-2-user-login: done
-  1-3-view-user-profile: backlog
-  1-4-edit-user-profile: backlog
-  1-5-user-logout: backlog
-  1-6-session-persistence-across-browser-refresh: backlog
-  1-7-automatic-token-refresh-before-expiration: backlog
-  1-8-navigation-links-from-landing-page-to-auth-pages: backlog
+  1-3-view-user-profile: done
+  1-4-edit-user-profile: done
+  1-5-user-logout: done
+  1-6-session-persistence-across-browser-refresh: done
+  1-7-automatic-token-refresh-before-expiration: done
+  1-8-navigation-links-from-landing-page-to-auth-pages: done
   epic-1-retrospective: optional
 
   # ═══════════════════════════════════════════════════════════════════

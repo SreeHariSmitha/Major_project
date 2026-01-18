@@ -35,9 +35,14 @@ export function Dashboard() {
             <p>Transform your ideas into investor-ready pitches</p>
           </div>
         </div>
-        <button className={styles.logoutButton} onClick={handleLogout}>
-          Logout
-        </button>
+        <div className={styles.headerActions}>
+          <a href="/profile" className={styles.profileLink}>
+            My Profile
+          </a>
+          <button className={styles.logoutButton} onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
       </header>
 
       {/* Main content */}

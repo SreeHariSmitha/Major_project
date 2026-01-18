@@ -58,9 +58,56 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initializeAuth();
   }, []);
 
+  // Set up token refresh interval (Story 1.7)
+  useEffect(() => {
+    if (!accessToken || !refreshToken) return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        // Check if token expires within 1 minute (60 seconds)
+        const tokenParts = accessToken.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          const expiryTime = payload.exp * 1000; // Convert to milliseconds
+          const currentTime = Date.now();
+          const timeUntilExpiry = expiryTime - currentTime;
+
+          // If token expires within 1 minute, refresh it
+          if (timeUntilExpiry < 60000) {
+            const response = await fetch('http://localhost:5001/api/v1/auth/refresh', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken }),
+            });
+
+            const data = await response.json();
+            if (response.ok && data.data?.accessToken) {
+              const newAccessToken = data.data.accessToken;
+              const newRefreshToken = data.data.refreshToken;
+
+              localStorage.setItem('accessToken', newAccessToken);
+              localStorage.setItem('refreshToken', newRefreshToken);
+              setAccessToken(newAccessToken);
+              setRefreshToken(newRefreshToken);
+            } else {
+              // Failed to refresh, log out user
+              logout();
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Token refresh error:', error);
+        // On error, log out user
+        logout();
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, [accessToken, refreshToken]);
+
   const login = async (email: string, password: string): Promise<void> => {
     try {
-      const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+      const response = await fetch('http://localhost:5001/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

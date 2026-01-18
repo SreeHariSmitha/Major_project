@@ -1,5 +1,6 @@
 import express, { Router } from 'express';
-import { register, login } from '../controllers/authController.js';
+import { register, login, getProfile, updateProfile, refreshAccessToken } from '../controllers/authController.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 /**
  * Authentication Routes
@@ -65,5 +66,90 @@ router.post('/register', register);
  * 500 - Server error
  */
 router.post('/login', login);
+
+/**
+ * GET /api/v1/auth/profile
+ * Get authenticated user's profile information
+ *
+ * Request headers:
+ * {
+ *   Authorization: "Bearer <access_token>"
+ * }
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     _id: string
+ *     email: string
+ *     name?: string
+ *     createdAt: Date
+ *   }
+ * }
+ *
+ * Error responses:
+ * 401 - Unauthorized (missing or invalid token)
+ * 404 - User not found
+ * 500 - Server error
+ */
+router.get('/profile', authMiddleware, getProfile);
+
+/**
+ * PUT /api/v1/auth/profile
+ * Update authenticated user's profile information
+ *
+ * Request headers:
+ * {
+ *   Authorization: "Bearer <access_token>"
+ * }
+ *
+ * Request body:
+ * {
+ *   name: string (optional, max 100 chars)
+ * }
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     _id: string
+ *     email: string
+ *     name?: string
+ *     createdAt: Date
+ *   }
+ * }
+ *
+ * Error responses:
+ * 400 - Validation error
+ * 401 - Unauthorized
+ * 404 - User not found
+ * 500 - Server error
+ */
+router.put('/profile', authMiddleware, updateProfile);
+
+/**
+ * POST /api/v1/auth/refresh
+ * Refresh access token using refresh token
+ *
+ * Request body:
+ * {
+ *   refreshToken: string (JWT)
+ * }
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     accessToken: string (JWT, 15min expiry)
+ *     refreshToken: string (JWT, 7d expiry)
+ *   }
+ * }
+ *
+ * Error responses:
+ * 400 - Missing refresh token
+ * 401 - Invalid or expired refresh token
+ * 500 - Server error
+ */
+router.post('/refresh', refreshAccessToken);
 
 export default router;

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { AuthenticatedRequest } from '../middleware/authMiddleware.js';
 /**
  * User Registration Controller
  * Handles POST /api/v1/auth/register
@@ -19,4 +20,31 @@ export declare const register: (req: Request, res: Response, next: NextFunction)
  * AC 4: User account not found
  */
 export declare const login: (req: Request, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * Get User Profile Controller
+ * Handles GET /api/v1/auth/profile
+ *
+ * AC 1: Display user profile information
+ * AC 2: Profile page is protected
+ * AC 3: Profile data accuracy
+ */
+export declare const getProfile: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * Update User Profile Controller
+ * Handles PUT /api/v1/auth/profile
+ *
+ * AC 1: Edit profile information
+ * AC 2: Save changes
+ * AC 3: Validation and error handling
+ */
+export declare const updateProfile: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * Refresh Token Controller
+ * Handles POST /api/v1/auth/refresh
+ *
+ * AC 1: Token refreshed automatically
+ * AC 2: Refresh endpoint works
+ * AC 3: Failed refresh logs out user
+ */
+export declare const refreshAccessToken: (req: Request, res: Response, next: NextFunction) => Promise<void>;
 //# sourceMappingURL=authController.d.ts.map

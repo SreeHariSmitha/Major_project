@@ -1,6 +1,6 @@
 import { User } from '../models/User.js';
 import { RegisterSchema, LoginSchema } from '../validators/auth.schema.js';
-import { generateTokens } from '../utils/jwt.js';
+import { generateTokens, verifyRefreshToken } from '../utils/jwt.js';
 import { ZodError } from 'zod';
 /**
  * User Registration Controller
@@ -176,6 +176,202 @@ export const login = async (req, res, next) => {
             error: {
                 code: 'INTERNAL_ERROR',
                 message: 'Unable to log in. Please try again.',
+            },
+        });
+    }
+};
+/**
+ * Get User Profile Controller
+ * Handles GET /api/v1/auth/profile
+ *
+ * AC 1: Display user profile information
+ * AC 2: Profile page is protected
+ * AC 3: Profile data accuracy
+ */
+export const getProfile = async (req, res, next) => {
+    try {
+        // Get user ID from authenticated request
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({
+                success: false,
+                error: {
+                    code: 'UNAUTHORIZED',
+                    message: 'Unauthorized access',
+                },
+            });
+            return;
+        }
+        // Fetch user from database
+        const user = await User.findById(userId);
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    code: 'NOT_FOUND',
+                    message: 'User not found',
+                },
+            });
+            return;
+        }
+        // Return user profile (without password)
+        const userResponse = {
+            _id: user._id,
+            email: user.email,
+            name: user.name,
+            createdAt: user.createdAt,
+        };
+        res.status(200).json({
+            success: true,
+            data: userResponse,
+        });
+    }
+    catch (error) {
+        console.error('Get profile error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_ERROR',
+                message: 'Unable to fetch profile. Please try again.',
+            },
+        });
+    }
+};
+/**
+ * Update User Profile Controller
+ * Handles PUT /api/v1/auth/profile
+ *
+ * AC 1: Edit profile information
+ * AC 2: Save changes
+ * AC 3: Validation and error handling
+ */
+export const updateProfile = async (req, res, next) => {
+    try {
+        const userId = req.userId;
+        if (!userId) {
+            res.status(401).json({
+                success: false,
+                error: {
+                    code: 'UNAUTHORIZED',
+                    message: 'Unauthorized access',
+                },
+            });
+            return;
+        }
+        const { name } = req.body;
+        // Validate name if provided
+        if (name !== undefined) {
+            if (typeof name !== 'string' || name.length === 0 || name.length > 100) {
+                res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: 'Name must be between 1 and 100 characters',
+                    },
+                });
+                return;
+            }
+        }
+        // Update user in database
+        const user = await User.findByIdAndUpdate(userId, { name }, { new: true, runValidators: true });
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    code: 'NOT_FOUND',
+                    message: 'User not found',
+                },
+            });
+            return;
+        }
+        // Return updated user profile
+        const userResponse = {
+            _id: user._id,
+            email: user.email,
+            name: user.name,
+            createdAt: user.createdAt,
+        };
+        res.status(200).json({
+            success: true,
+            data: userResponse,
+        });
+    }
+    catch (error) {
+        console.error('Update profile error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_ERROR',
+                message: 'Unable to update profile. Please try again.',
+            },
+        });
+    }
+};
+/**
+ * Refresh Token Controller
+ * Handles POST /api/v1/auth/refresh
+ *
+ * AC 1: Token refreshed automatically
+ * AC 2: Refresh endpoint works
+ * AC 3: Failed refresh logs out user
+ */
+export const refreshAccessToken = async (req, res, next) => {
+    try {
+        const { refreshToken } = req.body;
+        if (!refreshToken) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    code: 'VALIDATION_ERROR',
+                    message: 'Refresh token is required',
+                },
+            });
+            return;
+        }
+        // Verify refresh token
+        const decoded = verifyRefreshToken(refreshToken);
+        if (!decoded || !decoded.userId) {
+            res.status(401).json({
+                success: false,
+                error: {
+                    code: 'UNAUTHORIZED',
+                    message: 'Invalid or expired refresh token',
+                },
+            });
+            return;
+        }
+        // Fetch user to get updated info
+        const user = await User.findById(decoded.userId);
+        if (!user) {
+            res.status(401).json({
+                success: false,
+                error: {
+                    code: 'UNAUTHORIZED',
+                    message: 'Invalid or expired refresh token',
+                },
+            });
+            return;
+        }
+        // Generate new access token
+        const newTokens = generateTokens({
+            userId: user._id.toString(),
+            email: user.email,
+        });
+        res.status(200).json({
+            success: true,
+            data: {
+                accessToken: newTokens.accessToken,
+                refreshToken: newTokens.refreshToken,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Refresh token error:', error);
+        res.status(401).json({
+            success: false,
+            error: {
+                code: 'UNAUTHORIZED',
+                message: 'Invalid or expired refresh token',
             },
         });
     }

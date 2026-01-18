@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -51,6 +51,18 @@ export const authApi = {
   },
   login: async (data: any) => {
     const response = await apiClient.post('/api/v1/auth/login', data);
+    return response.data;
+  },
+  getProfile: async () => {
+    const response = await apiClient.get('/api/v1/auth/profile');
+    return response.data;
+  },
+  updateProfile: async (data: any) => {
+    const response = await apiClient.put('/api/v1/auth/profile', data);
+    return response.data;
+  },
+  refreshToken: async (refreshToken: string) => {
+    const response = await apiClient.post('/api/v1/auth/refresh', { refreshToken });
     return response.data;
   },
 };
