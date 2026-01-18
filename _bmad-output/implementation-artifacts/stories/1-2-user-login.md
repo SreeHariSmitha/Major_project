@@ -300,7 +300,111 @@ CORS_ORIGIN=http://localhost:5173
 
 ### Implementation Plan
 
-_To be filled during implementation_
+**Backend Implementation (TDD Approach):**
+1. ✅ Created JWT utility functions (generateAccessToken, generateRefreshToken, verifyAccessToken, verifyRefreshToken)
+2. ✅ Implemented POST /api/v1/auth/login endpoint with full acceptance criteria coverage
+3. ✅ Added Zod validation schema for login input (email format, password required)
+4. ✅ Implemented password comparison using bcrypt User.comparePassword() method
+5. ✅ Added comprehensive error handling (400, 401, 500 status codes)
+6. ✅ Created 7 integration tests covering all 4 ACs + email case-insensitivity + JWT format
+
+**Test Coverage:**
+- AC 1: Successful login with valid credentials (200, tokens generated)
+- AC 2a: Email validation (400 for invalid format)
+- AC 2b: Password required (400 when missing)
+- AC 3: Invalid credentials error handling (401 with generic message)
+- AC 4: User not found (401 with same generic message - prevents account enumeration)
+- Additional: Email case-insensitivity (uppercase emails work)
+- Additional: JWT token format validation (3-part structure)
+
+**Files Created:**
+- `server/src/utils/jwt.ts` - JWT token generation and verification utilities
+- `server/src/__tests__/controllers/auth.login.test.ts` - Login endpoint integration tests
+
+**Files Modified:**
+- `server/src/controllers/authController.ts` - Added login() function with password comparison
+- `server/src/routes/auth.ts` - Added POST /login route
+- `server/.env` - Added JWT_ACCESS_SECRET, JWT_REFRESH_SECRET with values
+
+### Implementation Details
+
+**JWT Token Generation:**
+- Access token: 15 minutes expiry (configurable via JWT_ACCESS_EXPIRY)
+- Refresh token: 7 days expiry (configurable via JWT_REFRESH_EXPIRY)
+- Token payload: { userId: string, email: string, iat: number, exp: number }
+- Stored in environment variables (JWT_ACCESS_SECRET, JWT_REFRESH_SECRET)
+
+**Login Endpoint (POST /api/v1/auth/login):**
+1. Validate input with Zod schema (email format, password required)
+2. Find user by email (case-insensitive, explicitly select password field)
+3. Compare password using bcrypt (User.comparePassword() method)
+4. Return 200 with user data + accessToken + refreshToken
+5. Return 401 with generic "Invalid email or password" message for:
+   - Wrong password
+   - User not found
+   (Prevents account enumeration attacks)
+6. Return 400 with VALIDATION_ERROR for invalid input
+
+**Error Handling:**
+- 200: Successful login with tokens
+- 400: Validation errors (VALIDATION_ERROR code, field details)
+- 401: Invalid credentials (UNAUTHORIZED code, generic message)
+- 500: Server errors (INTERNAL_ERROR code)
+
+**Security Measures:**
+- Password comparison using bcrypt.compare()
+- Generic error message for both wrong password and user not found
+- No password returned in response
+- Password field requires explicit .select('+password') in login query
+- Tokens stored in environment variables
+- Access token kept short-lived (15 min)
+- Refresh token separate and long-lived (7 days)
+
+### Completion Notes
+
+**All 4 Acceptance Criteria Fully Implemented & Tested:**
+
+✅ **AC 1: Successful Login with Valid Credentials**
+- User authenticated successfully
+- Returns 200 OK
+- Response includes accessToken and refreshToken
+- User data returned (no password)
+- Email verified in response
+
+✅ **AC 2: Email and Password Validation**
+- AC 2a: Invalid email format shows VALIDATION_ERROR (400)
+- AC 2b: Missing password shows VALIDATION_ERROR (400)
+- Real-time validation with Zod schema
+
+✅ **AC 3: Invalid Credentials Error Handling**
+- Wrong password returns 401 UNAUTHORIZED
+- Generic error message: "Invalid email or password"
+- No indication of whether email exists
+
+✅ **AC 4: User Account Not Found**
+- Non-existent email returns 401 UNAUTHORIZED
+- Same generic error message as wrong password
+- Prevents account enumeration attacks
+
+**Additional Features Verified:**
+- Email case-insensitivity (UPPERCASE@EXAMPLE.COM works)
+- JWT token format is valid (3 parts separated by dots)
+- Access token expiry: 15 minutes
+- Refresh token expiry: 7 days
+- Both tokens returned in single response
+
+**Test Results:**
+- 7/7 tests passing ✅
+- All acceptance criteria verified
+- Error handling comprehensive
+- JWT tokens generated correctly
+
+**Ready for:**
+- Frontend Login component integration
+- Story 1.3: View User Profile (depends on authentication)
+- Story 1.5: User Logout
+- Story 1.6: Session Persistence (token refresh)
+- Story 1.7: Automatic Token Refresh
 
 ---
 
@@ -312,9 +416,9 @@ _No review conducted yet._
 
 ## Status
 
-- **Current Status:** ready-for-dev (pending implementation)
-- **Progress:** Story file created, ready to begin backend implementation
+- **Current Status:** in-progress (backend 100% complete, frontend pending)
+- **Progress:** Backend fully implemented with all 7 tests passing
 - **Blocked By:** None (Story 1.1 DONE ✅)
-- **Blocking:** Stories 1.3-1.8 in Epic 1 (all require authentication)
-- **Next Steps:** Create JWT utility, implement login endpoint with tests, then frontend
+- **Blocking:** Frontend implementation can be done independently
+- **Next Steps:** Implement frontend Login component and integrate with backend API
 
