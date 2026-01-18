@@ -74,7 +74,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           // If token expires within 1 minute, refresh it
           if (timeUntilExpiry < 60000) {
-            const response = await fetch('http://localhost:5001/api/v1/auth/refresh', {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+            const response = await fetch(`${apiUrl}/api/v1/auth/refresh`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ refreshToken }),
@@ -107,7 +108,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<void> => {
     try {
-      const response = await fetch('http://localhost:5001/api/v1/auth/login', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/v1/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

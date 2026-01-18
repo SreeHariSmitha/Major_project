@@ -14,12 +14,11 @@ export const createApp = (): Express => {
   // Middleware: Security
   app.use(helmet());
 
-  // Middleware: CORS
-  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+  // Middleware: CORS - Allow all origins
   app.use(
     cors({
-      origin: corsOrigin,
-      credentials: true,
+      origin: '*',
+      credentials: false,
     })
   );
 
