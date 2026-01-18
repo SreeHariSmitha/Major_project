@@ -58,8 +58,8 @@ development_status:
   # ═══════════════════════════════════════════════════════════════════
   # EPIC 2: Public Discovery - Landing Page
   # ═══════════════════════════════════════════════════════════════════
-  epic-2: backlog
-  2-1-landing-page-hero-section-with-value-proposition: backlog
+  epic-2: in-progress
+  2-1-landing-page-hero-section-with-value-proposition: in-progress
   2-2-features-overview-section: backlog
   2-3-vision-and-mission-section: backlog
   2-4-contact-information-and-footer: backlog
