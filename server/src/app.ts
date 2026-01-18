@@ -29,12 +29,19 @@ export const createApp = (): Express => {
   // Middleware: Cookie parsing
   app.use(cookieParser());
 
+  // Middleware: Debug logging
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    console.log(`${req.method} ${req.path}`);
+    next();
+  });
+
   // Routes: Health check
   app.get('/health', (req: Request, res: Response) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
   // Routes: Authentication
+  console.log('Mounting auth routes at /api/v1/auth');
   app.use('/api/v1/auth', authRoutes);
 
   // Middleware: 404 handler

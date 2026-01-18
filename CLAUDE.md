@@ -1,600 +1,427 @@
-# CLAUDE.md - MCP Configuration & Usage Guide
+# CLAUDE.md - MCPs Quick Reference & Usage
 
-## Overview
+## What are MCPs?
 
-This document explains the **Model Context Protocol (MCP)** servers configured for this project and how to use them effectively with Claude Code to accelerate development.
-
-**Project:** Startup Validator Platform
-**Environment:** Windows + Node.js + React + Express + MongoDB Atlas
-**AI Assistant:** Claude (Haiku 4.5)
+**Model Context Protocols** extend Claude's capabilities by connecting to external services. Think of MCPs as **Claude's hands and eyes** enabling direct interaction with your dev environment.
 
 ---
 
-## What are MCPs (Model Context Protocols)?
-
-MCPs are **tools that extend Claude's capabilities** by connecting to external services, databases, and applications. They allow Claude to:
-- ✅ Access real-time information
-- ✅ Execute code and commands
-- ✅ Interact with databases
-- ✅ Control browsers and take actions
-- ✅ Access the latest documentation
-
-Think of MCPs as **Claude's hands and eyes** - enabling direct interaction with your development environment.
-
----
-
-## Configured MCPs for This Project
+## The 4 MCPs
 
 ### 1. 🌐 Chrome DevTools MCP
-**What it does:** Opens a browser and lets Claude control it programmatically
 
-#### When to Use:
-- Testing frontend registration/login flows
-- Visually verifying UI components
-- Taking screenshots of pages
-- Filling forms and clicking buttons
-- Checking console errors and network requests
-- Testing responsive design
+**What:** Control browser, test UI, capture screenshots
 
-#### How to Use:
+| When                 | Example                                                   |
+| -------------------- | --------------------------------------------------------- |
+| Test forms           | "Fill registration form with valid data and click submit" |
+| Visual verification  | "Take screenshot of dashboard"                            |
+| Debug errors         | "Check console errors and network requests"               |
+| Check responsiveness | "Test on mobile size 375px"                               |
 
-```markdown
-User: "Test the registration form by filling it with valid data and clicking submit"
+**Key Functions:**
 
-Claude will:
-1. Open browser to http://localhost:5173/register
-2. Take a snapshot of the page
-3. Fill email, name, password fields
-4. Click the Create Account button
-5. Wait for redirect and take screenshot
-6. Report results
-```
-
-#### Available Functions:
-
-| Function | Purpose |
-|----------|---------|
-| `new_page` | Open a new browser tab at URL |
-| `navigate_page` | Go to URL, back, forward, or reload |
-| `take_screenshot` | Capture current page viewport |
-| `take_snapshot` | Get accessibility tree of page elements |
-| `fill` | Type text into input fields |
-| `click` | Click buttons/links |
-| `fill_form` | Fill multiple form fields at once |
-| `list_console_messages` | Check browser console for errors |
-| `list_network_requests` | See all HTTP requests made |
-| `get_network_request` | Inspect details of specific request |
-| `wait_for` | Wait for text to appear on page |
-| `evaluate_script` | Run JavaScript in browser |
-
-#### Example Usage:
-
-```markdown
-# Test successful registration
-User: "Register a new user with email test@example.com, password Test1234!, verify the success"
-
-Claude Actions:
-1. Opens http://localhost:5173/register
-2. Fills form with provided credentials
-3. Clicks "Create Account"
-4. Verifies redirect to login page
-5. Checks network request to backend
-6. Reports: "✅ Registration successful - 201 status, user created in database"
-```
+- `navigate_page()` - Go to URL
+- `fill()` / `fill_form()` - Type in inputs
+- `click()` - Click buttons
+- `take_screenshot()` - Visual proof
+- `list_network_requests()` - Inspect API calls
+- `list_console_messages()` - Check errors
 
 ---
 
 ### 2. 📚 Context7 MCP
-**What it does:** Provides access to latest documentation for libraries and frameworks
 
-#### When to Use:
-- Writing code that uses new libraries
-- Need latest API documentation
-- Want code examples for specific features
-- Unsure about best practices for a tool
-- Need to update code to latest library version
+**What:** Access latest documentation for 1000+ libraries
 
-#### How to Use:
+| When                | Example                               |
+| ------------------- | ------------------------------------- |
+| Writing code        | "Show JWT implementation patterns"    |
+| Need best practices | "How do I use React Hook Form?"       |
+| Want examples       | "Mongoose schema validation examples" |
+| Stay updated        | "Latest Zod validation patterns"      |
 
-Before Context7 works, Claude must first **resolve the library name** to get its ID:
+**Workflow:**
 
-```markdown
-User: "Help me implement authentication with JWT in Express.js"
+1. Resolve library ID: `context7__resolve-library-id(libraryName)`
+2. Query docs: `context7__query-docs(libraryId, query)`
 
-Claude Actions:
-1. Calls context7__resolve-library-id with:
-   - query: "JWT authentication in Express"
-   - libraryName: "jsonwebtoken"
-2. Gets library ID: "/npm/jsonwebtoken"
-3. Calls context7__query-docs with:
-   - libraryId: "/npm/jsonwebtoken"
-   - query: "JWT token generation and verification"
-4. Returns latest code examples and best practices
-```
-
-#### Example Queries:
-
-| Need | Query |
-|------|-------|
-| Form validation | context7 + "zod form validation best practices" |
-| React hooks | context7 + "useEffect cleanup function examples" |
-| Express middleware | context7 + "Express error handling middleware" |
-| MongoDB queries | context7 + "MongoDB aggregation pipeline examples" |
-| CSS styling | context7 + "Tailwind CSS responsive design patterns" |
-
-#### Supported Libraries:
-
-✅ React, Vue, Angular
-✅ Express.js, Node.js
-✅ TypeScript
-✅ MongoDB, Mongoose
-✅ Next.js, Vite
-✅ Tailwind CSS
-✅ Zod, React Hook Form
-✅ Testing libraries (Jest, Vitest, Playwright)
-✅ 1000+ more...
-
-#### Example:
-
-```markdown
-User: "Show me how to use Mongoose schema validation with error handling"
-
-Claude will:
-1. Query Context7 for Mongoose documentation
-2. Get latest code examples
-3. Write type-safe MongoDB operations
-4. Include proper error handling
-5. Provide validation patterns
-```
+**Supported:** React, Vue, Angular, Express, Node, TypeScript, MongoDB, Mongoose, Next.js, Vite, Tailwind, Zod, testing libraries, 1000+ more
 
 ---
 
 ### 3. 🎨 Shadcn MCP
-**What it does:** Provides access to shadcn/ui component library for building professional UIs
 
-#### When to Use:
-- Building UI components (buttons, inputs, forms, dialogs)
-- Creating responsive layouts
-- Need accessible, ready-made components
-- Want consistent design system
-- Building dashboards or complex interfaces
+**What:** Professional, accessible UI components
 
-#### How to Use:
+| When            | Example                                     |
+| --------------- | ------------------------------------------- |
+| Build forms     | "Create registration form with email field" |
+| Make dashboards | "Show data in card grid layout"             |
+| Need components | "Get Input and Button components"           |
+| Consistent UI   | "Use shadcn components for all forms"       |
 
-```markdown
-User: "Create a registration form with email and password fields using shadcn components"
+**Component Categories:**
 
-Claude will:
-1. Access shadcn MCP to get component specs
-2. Get list of available components (Button, Input, Form, Dialog, etc.)
-3. Get component documentation
-4. Write React component using shadcn/ui
-5. Include proper styling and accessibility
-```
-
-#### Available Components:
-
-**Form Components:**
-- Input, Textarea, Select, Checkbox, Radio Button
-- Form, Label, Combobox
-- Date Picker, Time Picker
-
-**Layout Components:**
-- Card, Container, Grid, Flexbox
-- Tabs, Accordion, Collapsible
-
-**Interactive Components:**
-- Button, Button Group
-- Dialog, Drawer, Sheet
-- Popover, Tooltip
-- Dropdown Menu, Context Menu
-
-**Data Display:**
-- Table, List, Avatar
-- Badge, Status, Alert
-- Progress Bar, Skeleton
-
-**Notification Components:**
-- Toast/Sonner
-- Alert Dialog
-- Notification Banner
-
-#### Example Usage:
-
-```markdown
-User: "Design a login page with email, password fields, and a submit button using shadcn"
-
-Claude will:
-1. Get shadcn component specs
-2. Create professional login form with:
-   - Input components for email/password
-   - Button component for submit
-   - Form validation feedback
-   - Responsive design
-   - Accessible labels
-3. Include proper styling
-4. Provide complete code ready to use
-```
+- Form: Input, Select, Checkbox, Form, Label
+- Layout: Card, Tabs, Accordion, Grid
+- Interactive: Button, Dialog, Popover, Tooltip, Dropdown
+- Data: Table, List, Avatar, Badge, Progress
+- Notification: Toast, Alert, Dialog
 
 ---
 
 ### 4. 🗄️ MongoDB MCP
-**What it does:** Direct access to MongoDB database with full CRUD operations
 
-#### When to Use:
-- Query or insert data during development
-- Verify data was saved correctly
-- Debug database issues
-- Check collection structure and data
-- Run aggregations and complex queries
-- Clean up test data
+**What:** Database CRUD operations & verification
 
-#### How to Use:
+| When            | Example                                 |
+| --------------- | --------------------------------------- |
+| Verify data     | "Check if user was created"             |
+| Query data      | "Show all users registered in Jan 2026" |
+| Debug issues    | "Count documents, check schema"         |
+| Clean test data | "Delete all test users"                 |
 
-MongoDB MCP connects to your MongoDB URI automatically from environment variables.
+**Key Functions:**
 
-```markdown
-User: "Check how many users are registered in the database"
+- `count()` - Count documents
+- `find()` - Query with filters
+- `insert-many()` - Add documents
+- `update-many()` - Modify documents
+- `delete-many()` - Remove documents
+- `aggregate()` - Complex queries
 
-Claude will:
-1. Call mcp__mongo__count with:
-   - database: "startup-validator"
-   - collection: "users"
-2. Returns count: 5 users
+**Connection:** Automatically uses `MONGODB_URI` from .env
+
+---
+
+## How to Use MCPs in Requests
+
+### Single MCP
+
+```
+"Test the registration form"
+→ Claude uses Chrome MCP
 ```
 
-#### Available Operations:
+### Multiple MCPs
 
-| Operation | Purpose |
-|-----------|---------|
-| `list-databases` | See all databases |
-| `list-collections` | See collections in database |
-| `count` | Count documents matching filter |
-| `find` | Query documents with filters |
-| `aggregate` | Complex MongoDB aggregation pipeline |
-| `insert-many` | Insert new documents |
-| `update-many` | Update documents matching filter |
-| `delete-many` | Delete documents matching filter |
-| `create-collection` | Create new collection |
-| `drop-collection` | Delete entire collection |
-| `collection-schema` | See document structure |
-| `collection-indexes` | View database indexes |
-| `create-index` | Create new index |
+```
+"Build login form using shadcn, test in browser, verify database works"
+→ Claude uses Shadcn + Chrome + MongoDB MCPs
+```
 
-#### Example Queries:
+### Explicit MCP
 
-```markdown
-# Example 1: Count registered users
-User: "How many users have registered?"
+```
+"Use Context7 to show me JWT best practices"
+→ Claude explicitly uses Context7
+```
+
+---
+
+## Common Tasks & Which MCP
+
+| Task         | Primary  | Secondary | Example                            |
+| ------------ | -------- | --------- | ---------------------------------- |
+| Test feature | Chrome   | MongoDB   | "Test registration, verify in DB"  |
+| Build UI     | Shadcn   | Context7  | "Create form with latest patterns" |
+| Debug error  | Chrome   | Context7  | "Check console, get fix patterns"  |
+| Verify data  | MongoDB  | Chrome    | "Confirm user created, screenshot" |
+| Write code   | Context7 | Shadcn    | "Implement login with components"  |
+
+---
+
+## Real-World Workflows
+
+### Workflow A: Complete Feature Testing
+
+```
+Step 1: Chrome → Open registration page
+Step 2: Chrome → Fill form with valid data, click submit
+Step 3: Chrome → Take screenshot of success page
+Step 4: MongoDB → Query database to verify user created
+Result: ✅ All tests passed with evidence
+```
+
+### Workflow B: Build & Test Login Component
+
+```
+Step 1: Context7 → Get React Hook Form + JWT patterns
+Step 2: Shadcn → Get Input, Button components
+Step 3: Write → Complete login component
+Step 4: Chrome → Test form in browser (valid & invalid)
+Step 5: MongoDB → Verify password comparison works
+Result: ✅ Component code + test proof
+```
+
+### Workflow C: Debug Not Working Feature
+
+```
+Step 1: Chrome → Take screenshot, check console
+Step 2: Chrome → Check network tab for API response
+Step 3: MongoDB → Verify data was actually saved
+Step 4: Context7 → Get proper error handling patterns
+Step 5: Write → Fix the issue
+Step 6: Chrome → Re-test to confirm fix
+Result: ✅ Issue found & fixed with proof
+```
+
+### Workflow D: Build Dashboard with Data
+
+```
+Step 1: Context7 → Get React data display patterns
+Step 2: Shadcn → Get Card, Input, Select components
+Step 3: Write → Dashboard component with filtering
+Step 4: Chrome → Test on desktop, tablet, mobile
+Step 5: Chrome → Take screenshots of responsive design
+Result: ✅ Complete dashboard with proof screenshots
+```
+
+---
+
+## MCP Decision Tree
+
+**"I need to test something"**
+→ Chrome MCP (navigate, fill, click, screenshot)
+
+**"I need to write code"**
+→ Context7 MCP (get latest patterns & examples)
+
+**"I need to build UI"**
+→ Shadcn MCP (get professional components)
+
+**"I need to check/verify data"**
+→ MongoDB MCP (query, count, verify)
+
+**"I need to do multiple things"**
+→ Use multiple MCPs (Chrome + MongoDB, Context7 + Shadcn, etc.)
+
+---
+
+## Best Practices
+
+### ✅ DO
+
+- Test in browser (Chrome) → See it works visually
+- Verify database (MongoDB) → Confirm data saved
+- Check latest docs (Context7) → Best practices
+- Use components (Shadcn) → Consistent, accessible UI
+- Combine MCPs → Complete features in one request
+
+### ❌ DON'T
+
+- Assume code works without testing
+- Write code without checking documentation
+- Skip database verification
+- Trust tests without visual proof
+- Use old examples when newer docs exist
+
+---
+
+## MCP Functions Quick Reference
+
+### Chrome Functions
+
+```
+navigate_page(url)              Fill, click, navigate
+take_screenshot()               Visual proof
+take_snapshot()                 Page structure/elements
+fill(uid, value)                Type in input
+fill_form(elements)             Fill multiple at once
+click(uid)                       Click element
+list_network_requests()         See all HTTP requests
+get_network_request(id)         Inspect specific request
+list_console_messages()         Check errors/logs
+evaluate_script(function)       Run JS in browser
+```
+
+### MongoDB Functions
+
+```
+count(database, collection)     Count documents
+find(database, collection)      Query documents
+insert-many()                   Add documents
+update-many()                   Modify documents
+delete-many()                   Remove documents
+aggregate()                     Complex queries
+list-databases()                See all databases
+list-collections(database)      See collections
+collection-schema()             View document structure
+create-index()                  Create index
+```
+
+### Context7 Functions
+
+```
+resolve-library-id()            Get library ID first
+query-docs()                    Get documentation
+```
+
+### Shadcn Functions
+
+```
+getComponents()                 List all components
+getComponent(name)              Get specific component
+```
+
+---
+
+## Example Requests & Responses
+
+### Example 1: Test Registration
+
+```
+User: "Test registration with valid email test@example.com,
+       password Test1234!, verify success page and database"
 
 Claude:
-1. Calls MongoDB count on users collection
-2. Returns: "5 users registered"
+1. Opens http://localhost:5173/register
+2. Fills form with provided credentials
+3. Clicks "Create Account"
+4. Takes screenshot of success/login redirect
+5. Queries MongoDB for user document
+6. Reports: ✅ Registration successful - user created, password hashed
+```
 
-# Example 2: Find users with specific criteria
-User: "Show me all users who registered in January 2026"
+### Example 2: Build Login Form
+
+```
+User: "Create login form component using shadcn, include email and
+       password fields, add validation, test in browser"
 
 Claude:
-1. Queries with date filter
-2. Returns matching user documents
+1. Queries Context7 for React Hook Form + validation patterns
+2. Gets Shadcn Input and Button components
+3. Writes complete login component with validation
+4. Opens browser, tests form with valid/invalid data
+5. Reports: ✅ Component code + working screenshot
+```
 
-# Example 3: Verify registration worked
-User: "Confirm that test@example.com was created in database"
+### Example 3: Debug Form Issue
+
+```
+User: "Login form isn't working - debug and fix"
 
 Claude:
-1. Searches for user by email
-2. Returns user document with all fields
-3. Verifies password is hashed (not plaintext)
+1. Takes screenshot of form
+2. Checks browser console for errors
+3. Inspects network tab for API response
+4. Queries MongoDB to verify users exist
+5. Queries Context7 for error handling patterns
+6. Writes fix and re-tests
+7. Reports: ✅ Issue fixed (e.g., "API endpoint URL was wrong")
+```
 
-# Example 4: Clean up test data
-User: "Delete all test users that start with 'test-'"
+### Example 4: Verify Database State
+
+```
+User: "Show me:
+       1. How many users registered
+       2. List all users
+       3. Check if test@example.com exists"
 
 Claude:
-1. Queries with regex filter on email
-2. Deletes matching documents
-3. Confirms deletion
-```
-
-#### Connection Details:
-
-```
-Database: startup-validator
-MongoDB URI: mongodb+srv://Dhoni:Dhoni@cluster0.utffa.mongodb.net/?appName=Cluster0
-Collections: users, ideas, validations, phases, versions
+1. MongoDB count on users collection
+2. MongoDB find all users
+3. MongoDB find specific user
+4. Reports: ✅ 5 users total, shows all details
 ```
 
 ---
 
-## How to Use MCPs Together (Workflows)
+## Project Context
 
-### Workflow 1: Complete Feature Development
+**Stack:** Express + MongoDB + React + Vite + TypeScript
 
-```markdown
-User: "Implement and test the User Login feature"
-
-Claude Uses:
-1. Context7 → Get JWT implementation patterns from documentation
-2. Write code → Create login endpoint with password verification
-3. MongoDB MCP → Query users collection to verify email/password
-4. Chrome MCP → Test login form in browser
-5. Report results with screenshots
-```
-
-### Workflow 2: Debug Feature Issue
-
-```markdown
-User: "Registration form isn't working - fix it"
-
-Claude Uses:
-1. Chrome MCP → Take screenshot of form
-2. Chrome MCP → Check browser console for errors
-3. Chrome MCP → Check network tab for API response
-4. MongoDB MCP → Verify data was saved
-5. Context7 → Look up proper error handling patterns
-6. Write fix and re-test in browser
-```
-
-### Workflow 3: UI Design & Implementation
-
-```markdown
-User: "Create a professional dashboard for idea management"
-
-Claude Uses:
-1. Shadcn MCP → Get component specs
-2. Chrome MCP → Take screenshots of current design
-3. Context7 → Get React best practices for data display
-4. Write responsive dashboard component
-5. Chrome MCP → Test responsiveness on different screen sizes
-6. Iterate based on visual feedback
-```
-
-### Workflow 4: Data Validation & Testing
-
-```markdown
-User: "Test all registration validation rules"
-
-Claude Uses:
-1. Context7 → Get Zod validation patterns
-2. MongoDB MCP → Insert test users to verify constraints
-3. Chrome MCP → Fill forms with invalid data
-4. Chrome MCP → Verify error messages display
-5. Report coverage of all validation rules
-```
-
----
-
-## Best Practices for MCP Usage
-
-### ✅ DO:
-- **Use Chrome MCP for visual verification** - Screenshots confirm UI works as expected
-- **Use MongoDB MCP for data checks** - Verify that backend actually saved data
-- **Use Context7 before writing code** - Get latest docs and best practices first
-- **Use Shadcn MCP for UI components** - Build consistent, accessible interfaces
-- **Combine MCPs** - Use multiple MCPs for each feature (comprehensive approach)
-- **Request action verification** - Have Claude take screenshot after each step
-- **Check network requests** - Use Chrome MCP to verify API calls are correct
-
-### ❌ DON'T:
-- ❌ Assume code works without testing in browser
-- ❌ Write code without checking latest documentation
-- ❌ Trust test results without verifying in actual browser
-- ❌ Skip database verification - always check if data was saved
-- ❌ Use old examples when Context7 has newer patterns
-- ❌ Assume form works without testing all edge cases
-
----
-
-## Command Examples by Scenario
-
-### Scenario 1: Testing Registration Flow
-```markdown
-User: "Test registration with:
-1. Valid data (email: newuser@test.com, password: Test1234!)
-2. Invalid email (bademail)
-3. Short password (123)
-4. Duplicate email
-5. Screenshot each step"
-
-Claude will use:
-- Chrome MCP: Navigate, fill forms, click buttons, take screenshots
-- MongoDB MCP: Verify user created, count users
-- Report: All test results with evidence
-```
-
-### Scenario 2: Building Login Component
-```markdown
-User: "Create a login component with email/password fields,
-use shadcn components, include proper validation,
-and test it in the browser"
-
-Claude will use:
-- Context7: Get React Hook Form + Zod best practices
-- Shadcn MCP: Get Input and Button components
-- Write: Complete login component with validation
-- Chrome MCP: Open browser and test the component
-- Report: Component code + working screenshot
-```
-
-### Scenario 3: Debugging Database Issues
-```markdown
-User: "Users aren't being saved - debug and fix"
-
-Claude will use:
-- MongoDB MCP: Check users collection, count documents
-- Chrome MCP: Test registration form, check network tab
-- Context7: Get Express error handling patterns
-- Write: Fix any issues in backend
-- Verify: Test again with MongoDB MCP and Chrome MCP
-```
-
-### Scenario 4: Complex UI Implementation
-```markdown
-User: "Create dashboard showing all user ideas in a grid,
-with filters by status, search by title,
-use shadcn components, make it responsive"
-
-Claude will use:
-- Context7: Get React data display patterns
-- Shadcn MCP: Get Card, Input, Select components
-- Write: Complete dashboard component
-- Chrome MCP: Test desktop, tablet, mobile responsiveness
-- Report: Code + screenshots at different screen sizes
-```
-
----
-
-## How Claude Decides Which MCP to Use
-
-Claude automatically selects the right MCP based on the task:
-
-| Task Type | MCP | Why |
-|-----------|-----|-----|
-| "Test the form" | Chrome | Need visual browser interaction |
-| "Write login endpoint" | Context7 | Need latest best practices |
-| "Build form UI" | Shadcn | Need professional components |
-| "Check if user exists" | MongoDB | Need database query |
-| "Debug network error" | Chrome | Need to inspect requests |
-| "Implement validation" | Context7 + Shadcn | Need docs + components |
-| "Test form & database" | Chrome + MongoDB | Need browser + DB verification |
-
----
-
-## Project Structure with MCPs
+**Environment:**
 
 ```
-Major_project_AI/
-├── server/
-│   ├── src/
-│   │   ├── models/User.ts (← MongoDB schema)
-│   │   ├── controllers/authController.ts (← Logic)
-│   │   ├── routes/auth.ts
-│   │   └── app.ts
-│   ├── .env (← MongoDB connection)
-│   └── package.json
-│
-├── client/
-│   ├── src/
-│   │   ├── pages/Register.tsx (← Shadcn components)
-│   │   ├── schemas/auth.schema.ts (← Zod validation)
-│   │   └── services/api.ts (← API calls)
-│   └── package.json
-│
-├── _bmad-output/
-│   ├── stories/1-1-user-registration.md (← Current status)
-│   └── sprint-status.yaml (← Track progress)
-│
-└── CLAUDE.md (← You are here!)
-```
-
----
-
-## Environment Configuration
-
-### MongoDB Connection (.env)
-```bash
-# server/.env
-MONGODB_URI=mongodb+srv://Dhoni:Dhoni@cluster0.utffa.mongodb.net/startup-validator?retryWrites=true&w=majority
-```
-
-### Frontend API (.env)
-```bash
-# client/.env
-VITE_API_URL=http://localhost:5000
-```
-
-### Services Running
-```bash
 Backend:  http://localhost:5000
 Frontend: http://localhost:5173
-MongoDB:  cluster0.utffa.mongodb.net
+Database: MongoDB Atlas cluster0.utffa.mongodb.net/startup-validator
 ```
 
+**Key Files:**
+
+- Backend: `server/src/models/User.ts`, `controllers/authController.ts`
+- Frontend: `client/src/pages/Register.tsx`, `services/api.ts`
+- Database: MongoDB Atlas (email unique index, bcrypt passwords)
+
+**Current Status:** Story 1.1 Done, Story 1.2 Ready
+
 ---
 
-## Next Steps (Story 1.2: User Login)
+## Troubleshooting
 
-When building Story 1.2, use MCPs this way:
+### Chrome MCP Not Working
 
-```markdown
-1. Context7: Get JWT token patterns
-2. Write: Login endpoint with password verification
-3. Shadcn: Create login form component
-4. Chrome: Test login form in browser
-5. MongoDB: Verify user credentials checked
-6. Complete: End-to-end login flow tested
+- Check both servers running (ports 5000, 5173)
+- Try fresh browser tab
+- Use `take_snapshot` to see page structure
+
+### MongoDB MCP Can't Connect
+
+- Verify `MONGODB_URI` in `.env` is correct
+- Check network connection to MongoDB Atlas
+
+### Context7 Not Finding Docs
+
+- Try resolving library ID first
+- Library name must match npm package name
+
+### Form Not Submitting
+
+- Chrome: Inspect form element with `take_snapshot`
+- Context7: Get React Hook Form troubleshooting
+- Check browser console for JavaScript errors
+
+---
+
+## Summary Table
+
+| MCP          | Purpose         | When        | How                     |
+| ------------ | --------------- | ----------- | ----------------------- |
+| **Chrome**   | Browser control | Test UI     | fill, click, screenshot |
+| **Context7** | Docs access     | Write code  | query-docs              |
+| **Shadcn**   | UI components   | Build UI    | getComponent            |
+| **MongoDB**  | Database ops    | Verify data | find, count, insert     |
+
+---
+
+## Next: Story 1.2 (User Login)
+
 ```
-
----
-
-## Troubleshooting with MCPs
-
-### "Registration not working"
-**Solution:**
-1. Chrome MCP → Check browser console for errors
-2. Chrome MCP → Check network tab for API response
-3. MongoDB MCP → Verify user was actually saved
-4. Context7 → Look up proper error handling
-
-### "Form not submitting"
-**Solution:**
-1. Chrome MCP → Inspect form element details
-2. Chrome MCP → Evaluate JavaScript to check state
-3. Context7 → Get React Hook Form troubleshooting
-4. Write → Fix validation or submission logic
-
-### "Database not responding"
-**Solution:**
-1. MongoDB MCP → Try simple query
-2. Check MongoDB URI in .env
-3. Verify network connection to MongoDB Atlas
-4. Try reconnecting
-
-### "Chrome MCP not working"
-**Solution:**
-1. Verify both servers are running (ports 5000, 5173)
-2. Try fresh browser tab
-3. Check if page fully loaded
-4. Use `take_snapshot` to see page structure
-
----
-
-## Summary
-
-| MCP | What | When | How |
-|-----|------|------|-----|
-| **Chrome** | Browser control | Testing UI, taking screenshots | `navigate`, `fill`, `click`, `screenshot` |
-| **Context7** | Latest docs | Writing code, need examples | `resolve-library-id`, `query-docs` |
-| **Shadcn** | UI components | Building forms, dashboards | `getComponent`, `getComponents` |
-| **MongoDB** | Database access | CRUD, verification | `find`, `insert`, `count`, `update` |
-
----
-
-## Quick Reference Commands
-
-```markdown
-# Take screenshot of current page
-"Chrome: take a screenshot"
-
-# Test login form
-"Chrome: fill email field with test@example.com, fill password with Test1234!, click login button"
-
-# Check registration data
-"MongoDB: show me all users in the database"
-
-# Get documentation
-"Context7: show me JWT implementation patterns"
-
-# Get UI components
-"Shadcn: show me form components"
-
-# Test feature end-to-end
-"Register user with Chrome, verify in MongoDB, take screenshot of success"
+1. Context7 → JWT implementation patterns
+2. Write → Login endpoint + token generation
+3. Shadcn → Login form component
+4. Chrome → Test in browser
+5. MongoDB → Verify password comparison
+6. Done → End-to-end tested
 ```
 
 ---
 
 **Last Updated:** 2026-01-18
-**Status:** Story 1.1 (User Registration) Complete ✅
-**Next:** Story 1.2 (User Login) - Ready to start
+**Status:** Story 1.1 Complete ✅ | MCPs Documented ✅ | Ready for 1.2 🚀
 
-**For questions or issues, reference this document and use the appropriate MCP!**
+---
+
+## Quick Command Examples
+
+```
+# Test a feature
+"Test [feature] by [action], verify in [location]"
+
+# Build with UI
+"Create [component] using shadcn, test [where], ensure [property]"
+
+# Debug an issue
+"[Feature] isn't working - debug and fix"
+
+# Verify data
+"Show me [data] from database"
+
+# Get help writing code
+"How do I [task] using [library]?"
+```

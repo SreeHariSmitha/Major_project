@@ -3,7 +3,7 @@ storyKey: '1-2-user-login'
 epicNumber: 1
 storyNumber: 2
 title: 'User Login with Email and Password'
-status: 'ready-for-dev'
+status: 'done'
 createdAt: '2026-01-18'
 ---
 

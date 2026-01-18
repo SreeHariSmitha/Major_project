@@ -21,11 +21,17 @@ export const createApp = () => {
     app.use(express.urlencoded({ extended: true }));
     // Middleware: Cookie parsing
     app.use(cookieParser());
+    // Middleware: Debug logging
+    app.use((req, res, next) => {
+        console.log(`${req.method} ${req.path}`);
+        next();
+    });
     // Routes: Health check
     app.get('/health', (req, res) => {
         res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });
     // Routes: Authentication
+    console.log('Mounting auth routes at /api/v1/auth');
     app.use('/api/v1/auth', authRoutes);
     // Middleware: 404 handler
     app.use((req, res) => {
