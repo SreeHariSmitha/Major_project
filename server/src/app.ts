@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.js';
+import ideaRoutes from './routes/ideas.js';
 
 /**
  * Express App Configuration
@@ -43,6 +44,10 @@ export const createApp = (): Express => {
   // Routes: Authentication
   console.log('Mounting auth routes at /api/v1/auth');
   app.use('/api/v1/auth', authRoutes);
+
+  // Routes: Ideas
+  console.log('Mounting ideas routes at /api/v1/ideas');
+  app.use('/api/v1/ideas', ideaRoutes);
 
   // Middleware: 404 handler
   app.use((req: Request, res: Response) => {

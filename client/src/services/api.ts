@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosResponse } from 'axios';
+import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -44,6 +44,7 @@ apiClient.interceptors.response.use(
 );
 
 // Auth API endpoints
+// Auth API endpoints
 export const authApi = {
   register: async (data: any) => {
     const response = await apiClient.post('/api/v1/auth/register', data);
@@ -63,6 +64,38 @@ export const authApi = {
   },
   refreshToken: async (refreshToken: string) => {
     const response = await apiClient.post('/api/v1/auth/refresh', { refreshToken });
+    return response.data;
+  },
+};
+
+// Ideas API endpoints - Story 3.1, 3.2, etc.
+export const ideasApi = {
+  createIdea: async (data: any) => {
+    const response = await apiClient.post('/api/v1/ideas', data);
+    return response.data;
+  },
+  listIdeas: async (params?: any) => {
+    const response = await apiClient.get('/api/v1/ideas', { params });
+    return response.data;
+  },
+  getIdea: async (id: string) => {
+    const response = await apiClient.get(`/api/v1/ideas/${id}`);
+    return response.data;
+  },
+  updateIdea: async (id: string, data: any) => {
+    const response = await apiClient.put(`/api/v1/ideas/${id}`, data);
+    return response.data;
+  },
+  deleteIdea: async (id: string) => {
+    const response = await apiClient.delete(`/api/v1/ideas/${id}`);
+    return response.data;
+  },
+  archiveIdea: async (id: string, archived: boolean) => {
+    const response = await apiClient.patch(`/api/v1/ideas/${id}/archive`, { archived });
+    return response.data;
+  },
+  searchIdeas: async (q: string) => {
+    const response = await apiClient.get('/api/v1/ideas/search', { params: { q } });
     return response.data;
   },
 };

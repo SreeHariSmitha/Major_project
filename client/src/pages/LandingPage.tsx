@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import styles from './LandingPage.module.css';
 
 export function LandingPage() {
-  const isAuthenticated = !!localStorage.getItem('accessToken');
+  const { isAuthenticated } = useAuth();
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
