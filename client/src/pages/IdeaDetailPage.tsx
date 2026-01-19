@@ -32,8 +32,8 @@ interface Phase1Data {
 interface PhaseStatus {
   // New format
   phase1?: 'pending' | 'generated' | 'confirmed';
-  phase2?: 'locked' | 'pending' | 'generated' | 'confirmed';
-  phase3?: 'locked' | 'pending' | 'generated' | 'confirmed';
+  phase2?: 'locked' | 'pending' | 'generated' | 'confirmed' | 'invalidated';
+  phase3?: 'locked' | 'pending' | 'generated' | 'confirmed' | 'invalidated';
   // Old format (backwards compatibility)
   phase1Confirmed?: boolean;
   phase2Confirmed?: boolean;
@@ -403,16 +403,19 @@ export function IdeaDetailPage() {
               const isCompleted = status === 'confirmed';
               const isGenerated = status === 'generated';
               const isLocked = status === 'locked';
+              const isInvalidated = status === 'invalidated';
 
               return (
                 <div key={phase} className="flex items-center">
                   <div className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                    isInvalidated ? 'bg-orange-100' :
                     isActive ? 'bg-indigo-100' :
                     isCompleted ? 'bg-green-50' :
                     isGenerated ? 'bg-amber-50' :
                     'bg-slate-50'
                   }`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                      isInvalidated ? 'bg-orange-500 text-white' :
                       isCompleted ? 'bg-green-500 text-white' :
                       isGenerated ? 'bg-amber-500 text-white' :
                       isActive ? 'bg-indigo-500 text-white' :
@@ -423,6 +426,10 @@ export function IdeaDetailPage() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
+                      ) : isInvalidated ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
                       ) : isLocked ? (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -431,18 +438,26 @@ export function IdeaDetailPage() {
                         phase
                       )}
                     </div>
-                    <span className={`text-sm font-medium ${
-                      isActive ? 'text-indigo-700' :
-                      isCompleted ? 'text-green-700' :
-                      isGenerated ? 'text-amber-700' :
-                      'text-slate-500'
-                    }`}>
-                      Phase {phase}
-                    </span>
+                    <div className="flex flex-col">
+                      <span className={`text-sm font-medium ${
+                        isInvalidated ? 'text-orange-700' :
+                        isActive ? 'text-indigo-700' :
+                        isCompleted ? 'text-green-700' :
+                        isGenerated ? 'text-amber-700' :
+                        'text-slate-500'
+                      }`}>
+                        Phase {phase}
+                      </span>
+                      {isInvalidated && (
+                        <span className="text-xs text-orange-600">Needs Update</span>
+                      )}
+                    </div>
                   </div>
                   {phase < 3 && (
                     <div className={`w-12 h-0.5 mx-2 ${
-                      getPhaseStepperStatus(phase as 1 | 2 | 3) === 'confirmed' ? 'bg-green-300' : 'bg-slate-200'
+                      getPhaseStepperStatus(phase as 1 | 2 | 3) === 'confirmed' ? 'bg-green-300' :
+                      getPhaseStepperStatus(phase as 1 | 2 | 3) === 'invalidated' ? 'bg-orange-300' :
+                      'bg-slate-200'
                     }`} />
                   )}
                 </div>

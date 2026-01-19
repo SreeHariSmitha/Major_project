@@ -34,12 +34,12 @@ const IdeaSchema = new Schema({
         },
         phase2: {
             type: String,
-            enum: ['locked', 'pending', 'generated', 'confirmed'],
+            enum: ['locked', 'pending', 'generated', 'confirmed', 'invalidated'],
             default: 'locked',
         },
         phase3: {
             type: String,
-            enum: ['locked', 'pending', 'generated', 'confirmed'],
+            enum: ['locked', 'pending', 'generated', 'confirmed', 'invalidated'],
             default: 'locked',
         },
     },

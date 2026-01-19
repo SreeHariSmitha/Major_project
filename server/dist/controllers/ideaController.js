@@ -501,6 +501,15 @@ export const generatePhase1 = async (req, res, next) => {
         // Update idea with Phase 1 data
         idea.phase1Data = phase1Data;
         idea.phaseStatus.phase1 = 'generated';
+        // Cascade invalidation (Story 7.1): Regenerating Phase 1 invalidates Phase 2 & 3
+        const phase2Status = idea.phaseStatus.phase2;
+        const phase3Status = idea.phaseStatus.phase3;
+        if (phase2Status === 'generated' || phase2Status === 'confirmed') {
+            idea.phaseStatus.phase2 = 'invalidated';
+        }
+        if (phase3Status === 'generated' || phase3Status === 'confirmed') {
+            idea.phaseStatus.phase3 = 'invalidated';
+        }
         idea.version = (idea.version || 1) + 1;
         await idea.save();
         // Create version for phase generation (Story 5.1)
@@ -698,6 +707,16 @@ export const refineSection = async (req, res, next) => {
             const { killAssumption, killAssumptionTestGuidance } = refinedContent;
             idea.phase1Data.killAssumption = killAssumption;
             idea.phase1Data.killAssumptionTestGuidance = killAssumptionTestGuidance;
+        }
+        // Cascade invalidation (Story 7.1): Phase 1 edit invalidates Phase 2 & 3
+        // Only invalidate if they were previously generated or confirmed
+        const phase2Status = idea.phaseStatus.phase2;
+        const phase3Status = idea.phaseStatus.phase3;
+        if (phase2Status === 'generated' || phase2Status === 'confirmed') {
+            idea.phaseStatus.phase2 = 'invalidated';
+        }
+        if (phase3Status === 'generated' || phase3Status === 'confirmed') {
+            idea.phaseStatus.phase3 = 'invalidated';
         }
         // Increment version
         idea.version = (idea.version || 1) + 1;

@@ -34,11 +34,18 @@ export interface IPhase1Data {
 
 /**
  * PhaseStatus Interface - Track which phases have been completed/confirmed
+ *
+ * Status flow:
+ * - pending: Phase not started
+ * - generated: Phase content generated, awaiting confirmation
+ * - confirmed: Phase confirmed and locked
+ * - locked: Phase not accessible (previous phase not confirmed)
+ * - invalidated: Phase needs regeneration due to upstream changes
  */
 export interface IPhaseStatus {
   phase1: 'pending' | 'generated' | 'confirmed';
-  phase2: 'locked' | 'pending' | 'generated' | 'confirmed';
-  phase3: 'locked' | 'pending' | 'generated' | 'confirmed';
+  phase2: 'locked' | 'pending' | 'generated' | 'confirmed' | 'invalidated';
+  phase3: 'locked' | 'pending' | 'generated' | 'confirmed' | 'invalidated';
 }
 
 /**
@@ -93,12 +100,12 @@ const IdeaSchema = new Schema<IIdea>(
       },
       phase2: {
         type: String,
-        enum: ['locked', 'pending', 'generated', 'confirmed'],
+        enum: ['locked', 'pending', 'generated', 'confirmed', 'invalidated'],
         default: 'locked',
       },
       phase3: {
         type: String,
-        enum: ['locked', 'pending', 'generated', 'confirmed'],
+        enum: ['locked', 'pending', 'generated', 'confirmed', 'invalidated'],
         default: 'locked',
       },
     },
