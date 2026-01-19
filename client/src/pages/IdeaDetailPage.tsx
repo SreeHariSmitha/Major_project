@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { ideasApi } from '../services/api';
 import html2pdf from 'html2pdf.js';
 import { VersionHistoryPanel } from '../components/VersionHistoryPanel';
+import { SectionEditor } from '../components/SectionEditor';
 
 interface MarketFeasibility {
   marketSize: string;
@@ -60,6 +61,8 @@ export function IdeaDetailPage() {
   const [generating, setGenerating] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [isRefining, setIsRefining] = useState(false);
   const phase1ContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -222,6 +225,69 @@ export function IdeaDetailPage() {
     } finally {
       setDownloading(false);
     }
+  };
+
+  const handleRefineSection = async (sectionName: string, feedback: string) => {
+    if (!id) return;
+
+    try {
+      setIsRefining(true);
+      toast.info(`Refining ${getSectionTitle(sectionName)}...`);
+      const response = await ideasApi.refineSection(id, sectionName, feedback);
+      if (response.success && response.data) {
+        setIdea(response.data);
+        toast.success('Section refined successfully!');
+        setEditingSection(null);
+      } else {
+        toast.error(response.error?.message || 'Failed to refine section');
+      }
+    } catch (error) {
+      console.error('Error refining section:', error);
+      toast.error('Error refining section');
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  const getSectionTitle = (sectionName: string): string => {
+    switch (sectionName) {
+      case 'cleanSummary':
+        return 'Clean Idea Summary';
+      case 'marketFeasibility':
+        return 'Market Feasibility';
+      case 'competitiveAnalysis':
+        return 'Competitive Analysis';
+      case 'killAssumption':
+        return 'Kill Assumption';
+      default:
+        return sectionName;
+    }
+  };
+
+  const getSectionContent = (sectionName: string): string => {
+    if (!idea?.phase1Data) return '';
+    switch (sectionName) {
+      case 'cleanSummary':
+        return idea.phase1Data.cleanSummary || '';
+      case 'marketFeasibility':
+        const mf = idea.phase1Data.marketFeasibility;
+        if (!mf) return '';
+        return `Market Size: ${mf.marketSize}\nGrowth: ${mf.growthTrajectory}\nTiming: ${mf.timing}\nKey Trends: ${mf.keyTrends.join(', ')}`;
+      case 'competitiveAnalysis':
+        const ca = idea.phase1Data.competitiveAnalysis;
+        if (!ca || ca.length === 0) return '';
+        return ca.map(c => `${c.name}: ${c.difference} (Your advantage: ${c.advantage})`).join('\n\n');
+      case 'killAssumption':
+        return idea.phase1Data.killAssumption || '';
+      default:
+        return '';
+    }
+  };
+
+  const canEditSection = (): boolean => {
+    // Can only edit if Phase 1 is generated but not confirmed
+    const status = getPhaseStepperStatus(1);
+    return status === 'generated';
   };
 
   const getPhaseStepperStatus = (phase: 1 | 2 | 3): string => {
@@ -434,6 +500,17 @@ export function IdeaDetailPage() {
                 <div className="flex items-center gap-2 mb-4">
                   <span className="text-2xl">✨</span>
                   <h3 className="text-lg font-semibold text-slate-900">Clean Idea Summary</h3>
+                  {canEditSection() && (
+                    <button
+                      onClick={() => setEditingSection('cleanSummary')}
+                      className="ml-auto p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                      title="Edit this section"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
                 <p className="text-slate-600 leading-relaxed">{idea.phase1Data?.cleanSummary}</p>
               </div>
@@ -449,6 +526,17 @@ export function IdeaDetailPage() {
                     }`}>
                       Timing: {idea.phase1Data.marketFeasibility.timing}
                     </span>
+                    {canEditSection() && (
+                      <button
+                        onClick={() => setEditingSection('marketFeasibility')}
+                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title="Edit this section"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-6">
@@ -488,6 +576,17 @@ export function IdeaDetailPage() {
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-2xl">🎯</span>
                     <h3 className="text-lg font-semibold text-slate-900">Competitive Analysis</h3>
+                    {canEditSection() && (
+                      <button
+                        onClick={() => setEditingSection('competitiveAnalysis')}
+                        className="ml-auto p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title="Edit this section"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
 
                   <div className="space-y-4">
@@ -522,6 +621,17 @@ export function IdeaDetailPage() {
                     <span className="ml-auto px-3 py-1 bg-white/20 rounded-full text-xs font-semibold">
                       Critical to Validate
                     </span>
+                    {canEditSection() && (
+                      <button
+                        onClick={() => setEditingSection('killAssumption')}
+                        className="p-2 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors"
+                        title="Edit this section"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
 
                   <p className="text-lg leading-relaxed mb-4">{idea.phase1Data.killAssumption}</p>
@@ -615,6 +725,19 @@ export function IdeaDetailPage() {
           )}
         </div>
       </main>
+
+      {/* Section Editor */}
+      {editingSection && (
+        <SectionEditor
+          isOpen={!!editingSection}
+          onClose={() => setEditingSection(null)}
+          sectionName={editingSection}
+          sectionTitle={getSectionTitle(editingSection)}
+          currentContent={getSectionContent(editingSection)}
+          onRefine={(feedback) => handleRefineSection(editingSection, feedback)}
+          isRefining={isRefining}
+        />
+      )}
     </div>
   );
 }

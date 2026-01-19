@@ -124,6 +124,13 @@ export const ideasApi = {
     });
     return response.data;
   },
+  // Section Refinement API - Story 6.1-6.5
+  refineSection: async (id: string, sectionName: string, feedback: string) => {
+    const response = await apiClient.post(`/api/v1/ideas/${id}/sections/${sectionName}`, {
+      feedback,
+    });
+    return response.data;
+  },
 };
 
 export default apiClient;

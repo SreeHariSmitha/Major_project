@@ -54,6 +54,13 @@ export declare const generatePhase1: (req: AuthenticatedRequest, res: Response, 
  */
 export declare const confirmPhase1: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
 /**
+ * Refine Section - Story 6.1-6.4
+ * POST /api/v1/ideas/:id/sections/:sectionName
+ *
+ * Regenerates only the specified section based on user feedback
+ */
+export declare const refineSection: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
  * Get Version History - Story 5.2 & 5.3
  * GET /api/v1/ideas/:id/versions
  */

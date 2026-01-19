@@ -623,6 +623,189 @@ export const confirmPhase1 = async (req, res, next) => {
     }
 };
 /**
+ * Refine Section - Story 6.1-6.4
+ * POST /api/v1/ideas/:id/sections/:sectionName
+ *
+ * Regenerates only the specified section based on user feedback
+ */
+export const refineSection = async (req, res, next) => {
+    try {
+        const { id, sectionName } = req.params;
+        const { feedback } = req.body;
+        // Validate section name
+        const validSections = ['cleanSummary', 'marketFeasibility', 'competitiveAnalysis', 'killAssumption'];
+        if (!validSections.includes(sectionName)) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    code: 'INVALID_SECTION',
+                    message: `Invalid section name. Valid sections are: ${validSections.join(', ')}`,
+                },
+            });
+            return;
+        }
+        // Validate feedback
+        if (!feedback || typeof feedback !== 'string' || feedback.trim().length < 10) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    code: 'VALIDATION_ERROR',
+                    message: 'Feedback must be at least 10 characters',
+                },
+            });
+            return;
+        }
+        const idea = await Idea.findOne({
+            _id: id,
+            userId: req.userId,
+        });
+        if (!idea) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    code: 'NOT_FOUND',
+                    message: 'Idea not found',
+                },
+            });
+            return;
+        }
+        // Check if Phase 1 has been generated
+        if (!idea.phase1Data || idea.phaseStatus.phase1 === 'pending') {
+            res.status(400).json({
+                success: false,
+                error: {
+                    code: 'PHASE_NOT_GENERATED',
+                    message: 'Phase 1 must be generated before editing sections.',
+                },
+            });
+            return;
+        }
+        // Generate refined section content based on feedback
+        // For MVP: Template-based refinement incorporating feedback keywords
+        const refinedContent = generateRefinedSection(sectionName, idea.title, idea.description, feedback, idea.phase1Data);
+        // Update only the specified section
+        const previousPhase1Data = { ...idea.phase1Data };
+        if (sectionName === 'cleanSummary') {
+            idea.phase1Data.cleanSummary = refinedContent;
+        }
+        else if (sectionName === 'marketFeasibility') {
+            idea.phase1Data.marketFeasibility = refinedContent;
+        }
+        else if (sectionName === 'competitiveAnalysis') {
+            idea.phase1Data.competitiveAnalysis = refinedContent;
+        }
+        else if (sectionName === 'killAssumption') {
+            const { killAssumption, killAssumptionTestGuidance } = refinedContent;
+            idea.phase1Data.killAssumption = killAssumption;
+            idea.phase1Data.killAssumptionTestGuidance = killAssumptionTestGuidance;
+        }
+        // Increment version
+        idea.version = (idea.version || 1) + 1;
+        await idea.save();
+        // Create version for section edit (Story 5.1 + 6.4)
+        await Version.createVersion(idea._id, {
+            title: idea.title,
+            description: idea.description,
+            phase: idea.phase,
+            phaseStatus: idea.phaseStatus,
+            phase1Data: idea.phase1Data,
+        }, 'edit', `Refined ${sectionName} section`);
+        res.status(200).json({
+            success: true,
+            data: {
+                id: idea._id,
+                title: idea.title,
+                phase: idea.phase,
+                phaseStatus: idea.phaseStatus,
+                phase1Data: idea.phase1Data,
+                version: idea.version,
+                updatedAt: idea.updatedAt,
+                refinedSection: sectionName,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Refine section error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_ERROR',
+                message: 'Failed to refine section',
+            },
+        });
+    }
+};
+/**
+ * Helper function to generate refined section content based on feedback
+ * For MVP: Template-based with keyword extraction from feedback
+ * Future: AI-powered refinement
+ */
+function generateRefinedSection(sectionName, title, description, feedback, currentData) {
+    const feedbackLower = feedback.toLowerCase();
+    // Extract key themes from feedback
+    const isB2B = feedbackLower.includes('b2b') || feedbackLower.includes('business') || feedbackLower.includes('enterprise');
+    const isB2C = feedbackLower.includes('b2c') || feedbackLower.includes('consumer') || feedbackLower.includes('user');
+    const focusEurope = feedbackLower.includes('europe') || feedbackLower.includes('eu');
+    const focusAsia = feedbackLower.includes('asia') || feedbackLower.includes('apac');
+    const emphasizePrice = feedbackLower.includes('price') || feedbackLower.includes('cost') || feedbackLower.includes('afford');
+    const emphasizeSpeed = feedbackLower.includes('fast') || feedbackLower.includes('quick') || feedbackLower.includes('speed');
+    const emphasizeSecurity = feedbackLower.includes('secure') || feedbackLower.includes('privacy') || feedbackLower.includes('safe');
+    switch (sectionName) {
+        case 'cleanSummary':
+            const audience = isB2B ? 'businesses and enterprises' : isB2C ? 'consumers' : 'users';
+            const region = focusEurope ? ' in the European market' : focusAsia ? ' across Asia-Pacific' : '';
+            const value = emphasizePrice ? 'cost-effective' : emphasizeSpeed ? 'fast and efficient' : emphasizeSecurity ? 'secure and private' : 'innovative';
+            return `${title} is a ${value} solution designed for ${audience}${region}. ${description.substring(0, 100)}... Our focus is on delivering ${feedback.substring(0, 50)}... to help our target market succeed.`;
+        case 'marketFeasibility':
+            const marketSize = isB2B ? '$800B+ global enterprise software market' :
+                focusEurope ? '$250B+ European digital market' :
+                    focusAsia ? '$500B+ Asia-Pacific technology market' :
+                        '$350B+ addressable market opportunity';
+            const growth = emphasizeSpeed ? '30%+ CAGR driven by rapid digital adoption' :
+                '20-25% annual growth expected in target segments';
+            return {
+                marketSize,
+                growthTrajectory: growth,
+                keyTrends: [
+                    isB2B ? 'Enterprise digital transformation accelerating' : 'Consumer behavior shift to digital-first',
+                    focusEurope ? 'European regulatory compliance driving demand' : 'Global market consolidation',
+                    emphasizeSecurity ? 'Privacy and security concerns driving adoption' : 'User experience expectations rising',
+                    'Platform economy growth continues',
+                ],
+                timing: 'Now',
+            };
+        case 'competitiveAnalysis':
+            return [
+                {
+                    name: isB2B ? 'Enterprise Incumbents' : 'Market Leaders',
+                    difference: isB2B ? 'Complex enterprise solutions with long sales cycles' : 'Generic mass-market approach',
+                    advantage: `${title} provides ${emphasizeSpeed ? 'faster implementation' : emphasizePrice ? 'better value' : 'superior user experience'} based on ${feedback.substring(0, 30)}...`,
+                },
+                {
+                    name: 'Traditional Competitors',
+                    difference: emphasizeSecurity ? 'Legacy security models and compliance gaps' : 'Outdated technology stack',
+                    advantage: `Modern architecture with ${emphasizeSecurity ? 'built-in security and compliance' : 'seamless integration capabilities'}`,
+                },
+                {
+                    name: 'Emerging Players',
+                    difference: focusEurope || focusAsia ? 'US-centric approach' : 'Limited feature set',
+                    advantage: `${focusEurope ? 'European market expertise' : focusAsia ? 'Asia-Pacific localization' : 'Comprehensive feature coverage'}`,
+                },
+            ];
+        case 'killAssumption':
+            const killAudience = isB2B ? 'enterprise customers' : isB2C ? 'consumers' : 'users';
+            const assumption = isB2B
+                ? `Assumes enterprise decision-makers will prioritize ${emphasizeSpeed ? 'speed of implementation' : emphasizePrice ? 'cost savings' : 'this solution'} over incumbent relationships and that procurement cycles can be shortened.`
+                : `Assumes target ${killAudience} will ${emphasizePrice ? 'pay for a premium solution' : 'switch from existing habits'} and that ${feedback.substring(0, 40)}... is a validated pain point.`;
+            const guidance = isB2B
+                ? `Validate by: (1) Securing 5+ pilot customers, (2) Measuring ${emphasizeSpeed ? 'implementation time' : 'ROI metrics'}, (3) Getting procurement team buy-in from 3+ prospects.`
+                : `Validate by: (1) Running targeted ads to measure intent, (2) Conducting ${isB2C ? '30+' : '20+'} user interviews, (3) Testing willingness to ${emphasizePrice ? 'pay premium pricing' : 'change behavior'}.`;
+            return { killAssumption: assumption, killAssumptionTestGuidance: guidance };
+        default:
+            return currentData[sectionName];
+    }
+}
+/**
  * Helper function to generate Phase 1 content (MVP template-based)
  * In future: Replace with AI generation
  */

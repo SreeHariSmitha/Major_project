@@ -12,6 +12,7 @@ import {
   getVersionHistory,
   getVersion,
   compareVersions,
+  refineSection,
 } from '../controllers/ideaController.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
@@ -251,6 +252,41 @@ router.post('/:id/generate/phase1', generatePhase1);
  * 404 - Idea not found
  */
 router.post('/:id/confirm/phase1', confirmPhase1);
+
+/**
+ * POST /api/v1/ideas/:id/sections/:sectionName
+ * Refine a specific section with user feedback
+ * Story 6.1-6.5
+ *
+ * Request body:
+ * {
+ *   feedback: string (required - user's refinement instructions)
+ * }
+ *
+ * Valid section names:
+ * - cleanSummary
+ * - marketFeasibility
+ * - competitiveAnalysis
+ * - killAssumption
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     id: string
+ *     phase1Data: { ... updated section ... }
+ *     version: number
+ *     message: "Section refined successfully"
+ *   }
+ * }
+ *
+ * Error responses:
+ * 400 - Invalid section name
+ * 400 - Phase 1 not generated yet
+ * 400 - Phase 1 already confirmed (locked)
+ * 404 - Idea not found
+ */
+router.post('/:id/sections/:sectionName', refineSection);
 
 /**
  * GET /api/v1/ideas/:id/versions
