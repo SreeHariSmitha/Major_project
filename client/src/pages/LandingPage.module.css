@@ -136,11 +136,11 @@
    Hero Section
    ═══════════════════════════════════════════════════════════════════ */
 .hero {
-  min-height: 100vh;
+  min-height: 90vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   position: relative;
   overflow: hidden;
-  padding: 100px 2rem 50px;
+  padding: 80px 2rem 40px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -401,7 +401,7 @@
    Features Section
    ═══════════════════════════════════════════════════════════════════ */
 .features {
-  padding: 6rem 2rem;
+  padding: 4.5rem 2rem;
   background: #f9fafb;
 }
 
@@ -412,7 +412,7 @@
 
 .sectionHeader {
   text-align: center;
-  margin-bottom: 4rem;
+  margin-bottom: 3rem;
 }
 
 .sectionHeader h2 {
