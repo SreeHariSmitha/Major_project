@@ -184,6 +184,7 @@ export const listIdeas = async (
         phase: idea.phase,
         phaseStatus: idea.phaseStatus,
         phase1Data: idea.phase1Data,
+        phase2Data: idea.phase2Data,
         version: idea.version,
         archived: idea.archived,
         killAssumption: idea.phase1Data?.killAssumption,
@@ -241,6 +242,7 @@ export const getIdea = async (
         phase: idea.phase,
         phaseStatus: idea.phaseStatus,
         phase1Data: idea.phase1Data,
+        phase2Data: idea.phase2Data,
         version: idea.version,
         archived: idea.archived,
         killAssumption: idea.phase1Data?.killAssumption,
@@ -1284,6 +1286,333 @@ export const compareVersions = async (
     });
   }
 };
+
+/**
+ * Generate Phase 2 Analysis - Story 8.1-8.4
+ * POST /api/v1/ideas/:id/generate/phase2
+ *
+ * Generates:
+ * - Business Model (customer segments, value proposition, revenue, costs, partnerships, resources)
+ * - Strategy (customer acquisition, pricing, growth, milestones)
+ * - Structural Risks (market, business model, scaling, dependency risks)
+ * - Operational Risks (team, resource, execution, regulatory risks)
+ */
+export const generatePhase2 = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const idea = await Idea.findOne({
+      _id: id,
+      userId: req.userId,
+    });
+
+    if (!idea) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Idea not found',
+        },
+      });
+      return;
+    }
+
+    // Check if Phase 1 is confirmed (required to access Phase 2)
+    if (idea.phaseStatus.phase1 !== 'confirmed') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'PHASE_LOCKED',
+          message: 'Phase 1 must be confirmed before generating Phase 2.',
+        },
+      });
+      return;
+    }
+
+    // Check if Phase 2 is already confirmed (locked)
+    if (idea.phaseStatus.phase2 === 'confirmed') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'PHASE_LOCKED',
+          message: 'Phase 2 is already confirmed. Create a new version to regenerate.',
+        },
+      });
+      return;
+    }
+
+    // Generate Phase 2 content using Phase 1 data
+    const phase2Data = generatePhase2Content(idea.title, idea.description, idea.phase1Data);
+
+    // Update idea with Phase 2 data
+    idea.phase2Data = phase2Data;
+    idea.phaseStatus.phase2 = 'generated';
+    idea.phase = 'Phase 2';
+
+    // Cascade invalidation: Regenerating Phase 2 invalidates Phase 3
+    const phase3Status = idea.phaseStatus.phase3;
+    if (phase3Status === 'generated' || phase3Status === 'confirmed') {
+      idea.phaseStatus.phase3 = 'invalidated';
+    }
+
+    idea.version = (idea.version || 1) + 1;
+    await idea.save();
+
+    // Create version for phase generation
+    await Version.createVersion(
+      idea._id,
+      {
+        title: idea.title,
+        description: idea.description,
+        phase: idea.phase,
+        phaseStatus: idea.phaseStatus,
+        phase1Data: idea.phase1Data,
+        phase2Data: idea.phase2Data,
+      },
+      'phase2_generated',
+      'Phase 2 business model analysis generated'
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: idea._id,
+        title: idea.title,
+        description: idea.description,
+        phase: idea.phase,
+        phaseStatus: idea.phaseStatus,
+        phase1Data: idea.phase1Data,
+        phase2Data: idea.phase2Data,
+        version: idea.version,
+        updatedAt: idea.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error('Generate Phase 2 error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to generate Phase 2 analysis',
+      },
+    });
+  }
+};
+
+/**
+ * Confirm Phase 2 - Story 8.6
+ * POST /api/v1/ideas/:id/confirm/phase2
+ *
+ * Locks Phase 2 and enables Phase 3
+ */
+export const confirmPhase2 = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const idea = await Idea.findOne({
+      _id: id,
+      userId: req.userId,
+    });
+
+    if (!idea) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Idea not found',
+        },
+      });
+      return;
+    }
+
+    // Check if Phase 2 has been generated
+    if (idea.phaseStatus.phase2 === 'pending' || idea.phaseStatus.phase2 === 'locked') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'PHASE_NOT_GENERATED',
+          message: 'Phase 2 must be generated before confirming.',
+        },
+      });
+      return;
+    }
+
+    // Check if Phase 2 is already confirmed
+    if (idea.phaseStatus.phase2 === 'confirmed') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'PHASE_ALREADY_CONFIRMED',
+          message: 'Phase 2 is already confirmed.',
+        },
+      });
+      return;
+    }
+
+    // Confirm Phase 2 and unlock Phase 3
+    idea.phaseStatus.phase2 = 'confirmed';
+    idea.phaseStatus.phase3 = 'pending';
+    if (idea.phase2Data) {
+      idea.phase2Data.confirmedAt = new Date();
+    }
+    idea.version = (idea.version || 1) + 1;
+    await idea.save();
+
+    // Create version for phase confirmation
+    await Version.createVersion(
+      idea._id,
+      {
+        title: idea.title,
+        description: idea.description,
+        phase: idea.phase,
+        phaseStatus: idea.phaseStatus,
+        phase1Data: idea.phase1Data,
+        phase2Data: idea.phase2Data,
+      },
+      'phase2_confirmed',
+      'Phase 2 confirmed'
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: idea._id,
+        title: idea.title,
+        phase: idea.phase,
+        phaseStatus: idea.phaseStatus,
+        phase2Data: idea.phase2Data,
+        version: idea.version,
+        updatedAt: idea.updatedAt,
+        message: 'Phase 2 confirmed. Phase 3 is now available.',
+      },
+    });
+  } catch (error) {
+    console.error('Confirm Phase 2 error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to confirm Phase 2',
+      },
+    });
+  }
+};
+
+/**
+ * Helper function to generate Phase 2 content (MVP template-based)
+ * Uses Phase 1 data to generate business model, strategy, and risks
+ */
+function generatePhase2Content(title: string, description: string, phase1Data: any) {
+  const descLower = description.toLowerCase();
+  const isB2B = descLower.includes('b2b') || descLower.includes('business') || descLower.includes('enterprise');
+  const isB2C = descLower.includes('b2c') || descLower.includes('consumer');
+  const isSaaS = descLower.includes('saas') || descLower.includes('subscription') || descLower.includes('platform');
+  const isMarketplace = descLower.includes('marketplace') || descLower.includes('platform');
+  const hasAI = descLower.includes('ai') || descLower.includes('artificial intelligence') || descLower.includes('machine learning');
+
+  // Generate Business Model
+  const businessModel = {
+    customerSegments: isB2B
+      ? `Primary: Mid-to-large enterprises (500+ employees) in target industries seeking ${hasAI ? 'AI-powered' : 'digital'} solutions. Secondary: Fast-growing startups requiring scalable ${title.toLowerCase()} capabilities.`
+      : `Primary: Tech-savvy consumers aged 25-45 seeking ${hasAI ? 'intelligent' : 'modern'} solutions. Secondary: Early adopters and power users who value innovation and efficiency.`,
+    valueProposition: `${title} delivers ${hasAI ? 'AI-enhanced' : 'streamlined'} ${phase1Data?.cleanSummary?.substring(0, 100) || description.substring(0, 100)}... Key differentiators: (1) ${isSaaS ? 'Cloud-native architecture' : 'Modern user experience'}, (2) ${hasAI ? 'Intelligent automation' : 'Seamless integration'}, (3) ${isB2B ? 'Enterprise-grade security' : 'Consumer-friendly design'}.`,
+    revenueStreams: isSaaS
+      ? `Primary: SaaS subscriptions (${isB2B ? '$99-999/month per seat' : '$9.99-29.99/month'}). Secondary: ${isB2B ? 'Enterprise contracts ($10K-100K/year)' : 'Premium features and add-ons'}. Tertiary: ${isMarketplace ? 'Transaction fees (2-5%)' : 'Professional services and implementation'}.`
+      : isMarketplace
+        ? `Primary: Transaction fees (5-15% per transaction). Secondary: Featured listings and promotions. Tertiary: Premium seller tools and analytics.`
+        : `Primary: ${isB2B ? 'License fees and annual contracts' : 'Freemium with premium upgrades'}. Secondary: ${isB2B ? 'Implementation and support services' : 'In-app purchases and premium content'}.`,
+    costStructure: `Major costs: (1) Engineering and product development (40-50% of budget), (2) ${isB2B ? 'Sales and account management' : 'Marketing and user acquisition'} (20-30%), (3) Infrastructure and cloud services (15-20%), (4) Customer support and success (10-15%). Initial focus on product-market fit before scaling operations.`,
+    keyPartnerships: isB2B
+      ? `Technology partners (cloud providers, integration platforms), Channel partners (system integrators, consultants), Industry associations, ${hasAI ? 'AI/ML research institutions' : 'Technology vendors'}.`
+      : `Platform partners (app stores, distribution), Marketing partners (influencers, affiliates), Technology partners (payment processors, analytics), ${hasAI ? 'AI infrastructure providers' : 'Content and data providers'}.`,
+    keyResources: `(1) Engineering talent (${hasAI ? 'ML engineers, data scientists' : 'full-stack developers'}), (2) ${isB2B ? 'Sales and customer success team' : 'Growth and marketing team'}, (3) ${hasAI ? 'Proprietary AI models and training data' : 'Product and design capabilities'}, (4) Cloud infrastructure and scalable architecture.`,
+  };
+
+  // Generate Strategy
+  const strategy = {
+    customerAcquisition: isB2B
+      ? `Inbound: Content marketing, SEO, thought leadership. Outbound: Targeted sales outreach to ${phase1Data?.marketFeasibility?.marketSize || 'target market'}. Events: Industry conferences and webinars. Partnerships: Channel partners and resellers. Target CAC: $${isB2B ? '1,000-5,000' : '50-200'} per customer.`
+      : `Digital: Paid social (Meta, TikTok), search (Google), and app store optimization. Organic: Referral programs, viral features, content marketing. Partnerships: Influencer collaborations and cross-promotions. Target CAC: $${isB2C ? '10-50' : '25-100'} per user.`,
+    pricingStrategy: isSaaS
+      ? `Tiered pricing model: Starter (free/low-cost for adoption), Professional (${isB2B ? '$99-299/month' : '$9.99/month'}), Enterprise (${isB2B ? 'custom pricing' : '$29.99/month'}). Focus on value-based pricing tied to customer outcomes. Annual billing discount: 20%.`
+      : `${isMarketplace ? 'Transaction-based pricing (5-15% fee) with optional premium subscriptions' : 'Freemium model with premium upgrades ($4.99-19.99/month)'}. Competitive positioning: ${phase1Data?.competitiveAnalysis?.[0]?.advantage || 'Better value than alternatives'}.`,
+    growthStrategy: `Phase 1 (0-6 months): Product-market fit with ${isB2B ? '10-20 pilot customers' : '1,000-5,000 early adopters'}. Phase 2 (6-18 months): Scale ${isB2B ? 'sales team and expand verticals' : 'user acquisition and optimize conversion'}. Phase 3 (18+ months): ${isMarketplace ? 'Geographic expansion and category growth' : 'Platform expansion and ecosystem development'}. Target: ${phase1Data?.marketFeasibility?.growthTrajectory || '20%+ monthly growth'}.`,
+    keyMilestones: [
+      `Month 3: ${isB2B ? '5 paying customers' : '1,000 active users'}`,
+      `Month 6: ${isB2B ? '$50K ARR' : '10,000 active users'}`,
+      `Month 12: ${isB2B ? '$250K ARR, 25 customers' : '50,000 active users, profitability path clear'}`,
+      `Month 18: ${isB2B ? '$1M ARR, Series A ready' : '200,000 users, expansion markets identified'}`,
+    ],
+  };
+
+  // Generate Structural Risks
+  const structuralRisks = [
+    {
+      name: 'Market Risk',
+      description: `The ${phase1Data?.marketFeasibility?.marketSize || 'target market'} may evolve differently than expected, with changing customer needs or competitive dynamics.`,
+      implications: `Could require significant pivot. Mitigation: Continuous customer discovery, modular product architecture, diversified customer segments.`,
+    },
+    {
+      name: 'Business Model Risk',
+      description: isSaaS
+        ? 'Unit economics may not support sustainable growth at current pricing levels.'
+        : isMarketplace
+          ? 'Chicken-and-egg problem: need both supply and demand simultaneously.'
+          : 'Revenue model assumptions may not align with customer willingness to pay.',
+      implications: `${isSaaS ? 'May need to adjust pricing or reduce CAC significantly' : isMarketplace ? 'High customer acquisition costs until critical mass' : 'May need to explore alternative monetization strategies'}. Mitigation: Early validation of pricing, focus on unit economics from day one.`,
+    },
+    {
+      name: 'Scaling Risk',
+      description: `Current architecture and team may not support 10x growth without significant investment.`,
+      implications: `Growth could plateau or require major re-architecture. Mitigation: Build scalable infrastructure from start, plan hiring roadmap, document processes early.`,
+    },
+    {
+      name: 'Competitive Risk',
+      description: `Larger players (${phase1Data?.competitiveAnalysis?.[0]?.name || 'established competitors'}) could enter space or acquire competitors.`,
+      implications: `Market share pressure, price competition. Mitigation: Build strong brand, focus on niche, create switching costs, move fast.`,
+    },
+  ];
+
+  // Generate Operational Risks
+  const operationalRisks = [
+    {
+      name: 'Team Risk',
+      description: `Key person dependencies and potential skill gaps in ${hasAI ? 'AI/ML expertise' : 'technical leadership'}.`,
+      implications: `Single points of failure could delay product development. Mitigation: Document knowledge, cross-train team, plan key hires, consider advisors.`,
+    },
+    {
+      name: 'Resource Risk',
+      description: `${isB2B ? 'Longer sales cycles may require more runway than planned' : 'User acquisition costs may exceed projections'}.`,
+      implications: `May need to raise additional capital or reduce burn. Mitigation: Maintain 18-month runway, multiple funding options, clear path to profitability.`,
+    },
+    {
+      name: 'Execution Risk',
+      description: `${hasAI ? 'AI model performance and reliability challenges' : 'Product complexity may lead to longer development cycles'}.`,
+      implications: `Delayed launch or underwhelming initial product. Mitigation: MVP mindset, rapid iteration, customer feedback loops, realistic timelines.`,
+    },
+    {
+      name: 'Regulatory Risk',
+      description: `${hasAI ? 'AI regulations and data privacy laws (GDPR, CCPA, AI Act)' : isB2B ? 'Industry-specific compliance requirements (SOC2, HIPAA if healthcare)' : 'Data privacy and consumer protection regulations'}.`,
+      implications: `Could require additional investment in compliance or limit market access. Mitigation: Build compliance into product design, consult legal early, monitor regulatory developments.`,
+    },
+  ];
+
+  return {
+    businessModel,
+    strategy,
+    structuralRisks,
+    operationalRisks,
+    generatedAt: new Date(),
+  };
+}
 
 /**
  * Helper function to generate diff between two versions

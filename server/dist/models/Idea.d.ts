@@ -29,6 +29,45 @@ export interface IPhase1Data {
     confirmedAt?: Date;
 }
 /**
+ * Business Model Interface - For Phase 2 business model canvas
+ */
+export interface IBusinessModel {
+    customerSegments: string;
+    valueProposition: string;
+    revenueStreams: string;
+    costStructure: string;
+    keyPartnerships: string;
+    keyResources: string;
+}
+/**
+ * Strategy Interface - For Phase 2 go-to-market strategy
+ */
+export interface IStrategy {
+    customerAcquisition: string;
+    pricingStrategy: string;
+    growthStrategy: string;
+    keyMilestones: string[];
+}
+/**
+ * Risk Interface - For structural and operational risks
+ */
+export interface IRisk {
+    name: string;
+    description: string;
+    implications: string;
+}
+/**
+ * Phase 2 Data Interface - All Phase 2 business model outputs
+ */
+export interface IPhase2Data {
+    businessModel?: IBusinessModel;
+    strategy?: IStrategy;
+    structuralRisks?: IRisk[];
+    operationalRisks?: IRisk[];
+    generatedAt?: Date;
+    confirmedAt?: Date;
+}
+/**
  * PhaseStatus Interface - Track which phases have been completed/confirmed
  *
  * Status flow:
@@ -53,6 +92,7 @@ export interface IIdea extends Document {
     phase: 'Phase 1' | 'Phase 2' | 'Phase 3';
     phaseStatus: IPhaseStatus;
     phase1Data?: IPhase1Data;
+    phase2Data?: IPhase2Data;
     version: number;
     archived: boolean;
     createdAt: Date;

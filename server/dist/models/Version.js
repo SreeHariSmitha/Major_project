@@ -36,12 +36,12 @@ const VersionSchema = new Schema({
         },
         phase2: {
             type: String,
-            enum: ['locked', 'pending', 'generated', 'confirmed'],
+            enum: ['locked', 'pending', 'generated', 'confirmed', 'invalidated'],
             default: 'locked',
         },
         phase3: {
             type: String,
-            enum: ['locked', 'pending', 'generated', 'confirmed'],
+            enum: ['locked', 'pending', 'generated', 'confirmed', 'invalidated'],
             default: 'locked',
         },
     },
@@ -67,10 +67,34 @@ const VersionSchema = new Schema({
         confirmedAt: Date,
     },
     phase2Data: {
-        businessModel: String,
-        strategy: String,
-        structuralRisks: [String],
-        operationalRisks: [String],
+        businessModel: {
+            customerSegments: { type: String },
+            valueProposition: { type: String },
+            revenueStreams: { type: String },
+            costStructure: { type: String },
+            keyPartnerships: { type: String },
+            keyResources: { type: String },
+        },
+        strategy: {
+            customerAcquisition: { type: String },
+            pricingStrategy: { type: String },
+            growthStrategy: { type: String },
+            keyMilestones: [{ type: String }],
+        },
+        structuralRisks: [
+            {
+                name: { type: String },
+                description: { type: String },
+                implications: { type: String },
+            },
+        ],
+        operationalRisks: [
+            {
+                name: { type: String },
+                description: { type: String },
+                implications: { type: String },
+            },
+        ],
         generatedAt: Date,
         confirmedAt: Date,
     },

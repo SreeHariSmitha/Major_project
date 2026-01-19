@@ -1,5 +1,5 @@
 import express from 'express';
-import { createIdea, listIdeas, getIdea, updateIdea, deleteIdea, archiveIdea, searchIdeas, generatePhase1, confirmPhase1, getVersionHistory, getVersion, compareVersions, refineSection, } from '../controllers/ideaController.js';
+import { createIdea, listIdeas, getIdea, updateIdea, deleteIdea, archiveIdea, searchIdeas, generatePhase1, confirmPhase1, generatePhase2, confirmPhase2, getVersionHistory, getVersion, compareVersions, refineSection, } from '../controllers/ideaController.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 /**
  * Idea Routes
@@ -227,6 +227,69 @@ router.post('/:id/generate/phase1', generatePhase1);
  * 404 - Idea not found
  */
 router.post('/:id/confirm/phase1', confirmPhase1);
+/**
+ * POST /api/v1/ideas/:id/generate/phase2
+ * Generate Phase 2 business model analysis
+ * Story 8.1-8.4
+ *
+ * Generates:
+ * - Business Model (customer segments, value proposition, revenue streams, cost structure, partnerships, resources)
+ * - Strategy (customer acquisition, pricing, growth, milestones)
+ * - Structural Risks (market, business model, scaling, competitive)
+ * - Operational Risks (team, resource, execution, regulatory)
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     id: string
+ *     title: string
+ *     phase: "Phase 2"
+ *     phaseStatus: { phase1: "confirmed", phase2: "generated", phase3: "locked" }
+ *     phase2Data: {
+ *       businessModel: { customerSegments, valueProposition, revenueStreams, costStructure, keyPartnerships, keyResources }
+ *       strategy: { customerAcquisition, pricingStrategy, growthStrategy, keyMilestones }
+ *       structuralRisks: [{ name, description, implications }]
+ *       operationalRisks: [{ name, description, implications }]
+ *       generatedAt: Date
+ *     }
+ *     version: number
+ *     updatedAt: Date
+ *   }
+ * }
+ *
+ * Error responses:
+ * 400 - Phase 1 not confirmed (locked)
+ * 400 - Phase 2 already confirmed (locked)
+ * 404 - Idea not found
+ */
+router.post('/:id/generate/phase2', generatePhase2);
+/**
+ * POST /api/v1/ideas/:id/confirm/phase2
+ * Confirm and lock Phase 2, enable Phase 3
+ * Story 8.6
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     id: string
+ *     title: string
+ *     phase: string
+ *     phaseStatus: { phase1: "confirmed", phase2: "confirmed", phase3: "pending" }
+ *     phase2Data: { ..., confirmedAt: Date }
+ *     version: number
+ *     updatedAt: Date
+ *     message: "Phase 2 confirmed. Phase 3 is now available."
+ *   }
+ * }
+ *
+ * Error responses:
+ * 400 - Phase 2 not generated yet
+ * 400 - Phase 2 already confirmed
+ * 404 - Idea not found
+ */
+router.post('/:id/confirm/phase2', confirmPhase2);
 /**
  * POST /api/v1/ideas/:id/sections/:sectionName
  * Refine a specific section with user feedback

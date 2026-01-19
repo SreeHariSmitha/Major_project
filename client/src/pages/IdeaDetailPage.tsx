@@ -29,6 +29,37 @@ interface Phase1Data {
   confirmedAt?: string;
 }
 
+interface BusinessModel {
+  customerSegments: string;
+  valueProposition: string;
+  revenueStreams: string;
+  costStructure: string;
+  keyPartnerships: string;
+  keyResources: string;
+}
+
+interface Strategy {
+  customerAcquisition: string;
+  pricingStrategy: string;
+  growthStrategy: string;
+  keyMilestones: string[];
+}
+
+interface Risk {
+  name: string;
+  description: string;
+  implications: string;
+}
+
+interface Phase2Data {
+  businessModel?: BusinessModel;
+  strategy?: Strategy;
+  structuralRisks?: Risk[];
+  operationalRisks?: Risk[];
+  generatedAt?: string;
+  confirmedAt?: string;
+}
+
 interface PhaseStatus {
   // New format
   phase1?: 'pending' | 'generated' | 'confirmed';
@@ -47,6 +78,7 @@ interface Idea {
   phase: string;
   phaseStatus: PhaseStatus;
   phase1Data?: Phase1Data;
+  phase2Data?: Phase2Data;
   version: number;
   archived: boolean;
   createdAt: string;
@@ -61,8 +93,11 @@ export function IdeaDetailPage() {
   const [generating, setGenerating] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [downloadingPhase2, setDownloadingPhase2] = useState(false);
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [isRefining, setIsRefining] = useState(false);
+  const [generatingPhase2, setGeneratingPhase2] = useState(false);
+  const [confirmingPhase2, setConfirmingPhase2] = useState(false);
   const phase1ContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -128,6 +163,47 @@ export function IdeaDetailPage() {
       toast.error('Error confirming Phase 1');
     } finally {
       setConfirming(false);
+    }
+  };
+
+  const handleGeneratePhase2 = async () => {
+    if (!id) return;
+
+    try {
+      setGeneratingPhase2(true);
+      toast.info('Generating Phase 2 business model analysis...');
+      const response = await ideasApi.generatePhase2(id);
+      if (response.success && response.data) {
+        setIdea(response.data);
+        toast.success('Phase 2 business model generated successfully!');
+      } else {
+        toast.error(response.error?.message || 'Failed to generate Phase 2');
+      }
+    } catch (error) {
+      console.error('Error generating Phase 2:', error);
+      toast.error('Error generating Phase 2 analysis');
+    } finally {
+      setGeneratingPhase2(false);
+    }
+  };
+
+  const handleConfirmPhase2 = async () => {
+    if (!id) return;
+
+    try {
+      setConfirmingPhase2(true);
+      const response = await ideasApi.confirmPhase2(id);
+      if (response.success && response.data) {
+        setIdea(response.data);
+        toast.success('Phase 2 confirmed! Phase 3 is now available.');
+      } else {
+        toast.error(response.error?.message || 'Failed to confirm Phase 2');
+      }
+    } catch (error) {
+      console.error('Error confirming Phase 2:', error);
+      toast.error('Error confirming Phase 2');
+    } finally {
+      setConfirmingPhase2(false);
     }
   };
 
@@ -224,6 +300,133 @@ export function IdeaDetailPage() {
       toast.error('Failed to generate PDF');
     } finally {
       setDownloading(false);
+    }
+  };
+
+  const handleDownloadPhase2PDF = async () => {
+    if (!idea || !idea.phase2Data) {
+      toast.error('No Phase 2 data to download');
+      return;
+    }
+
+    try {
+      setDownloadingPhase2(true);
+      toast.info('Generating Phase 2 PDF...');
+
+      const phase2 = idea.phase2Data;
+      const pdfContent = document.createElement('div');
+      pdfContent.innerHTML = `
+        <div style="padding: 40px; font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #4F46E5; padding-bottom: 20px;">
+            <h1 style="color: #1E293B; margin: 0 0 10px 0;">${idea.title}</h1>
+            <p style="color: #64748B; margin: 0;">Phase 2 Business Model Report</p>
+            <p style="color: #64748B; font-size: 12px; margin: 5px 0 0 0;">Version ${idea.version} | Generated: ${new Date(phase2.generatedAt || '').toLocaleDateString()}</p>
+          </div>
+
+          <div style="margin-bottom: 30px;">
+            <h2 style="color: #4F46E5; font-size: 20px; margin: 0 0 15px 0;">🎯 Business Model Canvas</h2>
+
+            <div style="background: #F8FAFC; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+              <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">Customer Segments</h3>
+              <p style="color: #475569; margin: 0; line-height: 1.5;">${phase2.businessModel?.customerSegments}</p>
+            </div>
+
+            <div style="background: #F8FAFC; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+              <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">Value Proposition</h3>
+              <p style="color: #475569; margin: 0; line-height: 1.5;">${phase2.businessModel?.valueProposition}</p>
+            </div>
+
+            <div style="background: #F8FAFC; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+              <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">Revenue Streams</h3>
+              <p style="color: #475569; margin: 0; line-height: 1.5;">${phase2.businessModel?.revenueStreams}</p>
+            </div>
+
+            <div style="background: #F8FAFC; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+              <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">Cost Structure</h3>
+              <p style="color: #475569; margin: 0; line-height: 1.5;">${phase2.businessModel?.costStructure}</p>
+            </div>
+
+            <div style="background: #F8FAFC; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+              <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">Key Partnerships</h3>
+              <p style="color: #475569; margin: 0; line-height: 1.5;">${phase2.businessModel?.keyPartnerships}</p>
+            </div>
+
+            <div style="background: #F8FAFC; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+              <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">Key Resources</h3>
+              <p style="color: #475569; margin: 0; line-height: 1.5;">${phase2.businessModel?.keyResources}</p>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 30px;">
+            <h2 style="color: #4F46E5; font-size: 20px; margin: 0 0 15px 0;">🚀 Go-To-Market Strategy</h2>
+
+            <div style="background: #F0FDF4; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #22C55E;">
+              <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">Customer Acquisition</h3>
+              <p style="color: #475569; margin: 0; line-height: 1.5;">${phase2.strategy?.customerAcquisition}</p>
+            </div>
+
+            <div style="background: #F0FDF4; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #22C55E;">
+              <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">Pricing Strategy</h3>
+              <p style="color: #475569; margin: 0; line-height: 1.5;">${phase2.strategy?.pricingStrategy}</p>
+            </div>
+
+            <div style="background: #F0FDF4; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #22C55E;">
+              <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">Growth Strategy</h3>
+              <p style="color: #475569; margin: 0; line-height: 1.5;">${phase2.strategy?.growthStrategy}</p>
+            </div>
+
+            <div style="background: #F0FDF4; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #22C55E;">
+              <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">Key Milestones</h3>
+              <ol style="color: #475569; margin: 0; line-height: 1.8; padding-left: 20px;">
+                ${phase2.strategy?.keyMilestones?.map(m => `<li>${m}</li>`).join('') || ''}
+              </ol>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 30px;">
+            <h2 style="color: #EF4444; font-size: 20px; margin: 0 0 15px 0;">⚡ Structural Risks</h2>
+            ${phase2.structuralRisks?.map(r => `
+              <div style="background: #FEF2F2; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #EF4444;">
+                <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">${r.name}</h3>
+                <p style="color: #475569; margin: 0 0 8px 0; line-height: 1.5;">${r.description}</p>
+                <p style="color: #DC2626; font-size: 13px; margin: 0; font-style: italic;">${r.implications}</p>
+              </div>
+            `).join('') || ''}
+          </div>
+
+          <div style="margin-bottom: 30px;">
+            <h2 style="color: #F59E0B; font-size: 20px; margin: 0 0 15px 0;">⚙️ Operational Risks</h2>
+            ${phase2.operationalRisks?.map(r => `
+              <div style="background: #FFFBEB; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #F59E0B;">
+                <h3 style="color: #1E293B; margin: 0 0 8px 0; font-size: 14px;">${r.name}</h3>
+                <p style="color: #475569; margin: 0 0 8px 0; line-height: 1.5;">${r.description}</p>
+                <p style="color: #D97706; font-size: 13px; margin: 0; font-style: italic;">${r.implications}</p>
+              </div>
+            `).join('') || ''}
+          </div>
+
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E2E8F0; text-align: center; color: #94A3B8; font-size: 12px;">
+            <p style="margin: 0;">Generated by Startup Validator Platform</p>
+            <p style="margin: 5px 0 0 0;">${new Date().toLocaleDateString()} | Phase 2 Business Model Report</p>
+          </div>
+        </div>
+      `;
+
+      const opt = {
+        margin: 10,
+        filename: `${idea.title.replace(/[^a-zA-Z0-9]/g, '_')}_Phase2_Report.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      await html2pdf().set(opt).from(pdfContent).save();
+      toast.success('Phase 2 PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating Phase 2 PDF:', error);
+      toast.error('Failed to generate Phase 2 PDF');
+    } finally {
+      setDownloadingPhase2(false);
     }
   };
 
@@ -738,6 +941,294 @@ export function IdeaDetailPage() {
               </div>
             </>
           )}
+
+          {/* Phase 2 Section */}
+          {(() => {
+            const phase2Status = getPhaseStepperStatus(2);
+            const hasPhase2Data = idea.phase2Data && idea.phase2Data.businessModel;
+
+            return (
+              <div className="mt-8 pt-8 border-t border-slate-200">
+                <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                  <span className="text-2xl">📈</span>
+                  Phase 2: Business Model Development
+                </h2>
+
+                {/* Phase 2 Locked State */}
+                {phase2Status === 'locked' && (
+                  <div className="bg-slate-100 rounded-xl p-8 text-center">
+                    <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-700 mb-2">Phase 2 is Locked</h3>
+                    <p className="text-slate-500 max-w-md mx-auto">
+                      Complete and confirm Phase 1 to unlock Phase 2: Business Model Development
+                    </p>
+                  </div>
+                )}
+
+                {/* Phase 2 Invalidated State */}
+                {phase2Status === 'invalidated' && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-8 text-center">
+                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-orange-700 mb-2">Phase 2 Needs Update</h3>
+                    <p className="text-orange-600 max-w-md mx-auto mb-4">
+                      Phase 1 has been modified. Regenerate Phase 2 to reflect the latest changes.
+                    </p>
+                    <button
+                      onClick={handleGeneratePhase2}
+                      disabled={generatingPhase2}
+                      className="btn bg-orange-500 text-white hover:bg-orange-600"
+                    >
+                      {generatingPhase2 ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Regenerating...
+                        </>
+                      ) : (
+                        'Regenerate Phase 2'
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Phase 2 Pending - Generate Button */}
+                {phase2Status === 'pending' && !hasPhase2Data && (
+                  <div className="bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl p-8 text-center">
+                    <div className="text-5xl mb-4">💼</div>
+                    <h3 className="text-2xl font-bold text-white mb-2">Ready to Build Your Business Model?</h3>
+                    <p className="text-white/80 mb-6 max-w-md mx-auto">
+                      Generate your comprehensive business model, go-to-market strategy, and risk analysis.
+                    </p>
+                    <button
+                      onClick={handleGeneratePhase2}
+                      disabled={generatingPhase2}
+                      className="btn bg-white text-blue-600 hover:bg-slate-100 px-8 py-3 text-base font-semibold disabled:opacity-60"
+                    >
+                      {generatingPhase2 ? (
+                        <>
+                          <span className="w-5 h-5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
+                          Generating Business Model...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          Generate Phase 2 Analysis
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Phase 2 Generated Content */}
+                {hasPhase2Data && (
+                  <div className="space-y-6">
+                    {/* Business Model */}
+                    {idea.phase2Data?.businessModel && (
+                      <div className="bg-white rounded-xl border border-slate-200 p-6">
+                        <div className="flex items-center gap-2 mb-6">
+                          <span className="text-2xl">🎯</span>
+                          <h3 className="text-lg font-semibold text-slate-900">Business Model Canvas</h3>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-6">
+                          <div className="bg-blue-50 rounded-lg p-4">
+                            <h4 className="text-sm font-semibold text-blue-700 mb-2">Customer Segments</h4>
+                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.customerSegments}</p>
+                          </div>
+                          <div className="bg-purple-50 rounded-lg p-4">
+                            <h4 className="text-sm font-semibold text-purple-700 mb-2">Value Proposition</h4>
+                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.valueProposition}</p>
+                          </div>
+                          <div className="bg-green-50 rounded-lg p-4">
+                            <h4 className="text-sm font-semibold text-green-700 mb-2">Revenue Streams</h4>
+                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.revenueStreams}</p>
+                          </div>
+                          <div className="bg-amber-50 rounded-lg p-4">
+                            <h4 className="text-sm font-semibold text-amber-700 mb-2">Cost Structure</h4>
+                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.costStructure}</p>
+                          </div>
+                          <div className="bg-cyan-50 rounded-lg p-4">
+                            <h4 className="text-sm font-semibold text-cyan-700 mb-2">Key Partnerships</h4>
+                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.keyPartnerships}</p>
+                          </div>
+                          <div className="bg-indigo-50 rounded-lg p-4">
+                            <h4 className="text-sm font-semibold text-indigo-700 mb-2">Key Resources</h4>
+                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.keyResources}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Strategy */}
+                    {idea.phase2Data?.strategy && (
+                      <div className="bg-white rounded-xl border border-slate-200 p-6">
+                        <div className="flex items-center gap-2 mb-6">
+                          <span className="text-2xl">🚀</span>
+                          <h3 className="text-lg font-semibold text-slate-900">Go-To-Market Strategy</h3>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="bg-slate-50 rounded-lg p-4">
+                            <h4 className="text-sm font-semibold text-slate-700 mb-2">Customer Acquisition</h4>
+                            <p className="text-slate-600 text-sm">{idea.phase2Data.strategy.customerAcquisition}</p>
+                          </div>
+                          <div className="bg-slate-50 rounded-lg p-4">
+                            <h4 className="text-sm font-semibold text-slate-700 mb-2">Pricing Strategy</h4>
+                            <p className="text-slate-600 text-sm">{idea.phase2Data.strategy.pricingStrategy}</p>
+                          </div>
+                          <div className="bg-slate-50 rounded-lg p-4">
+                            <h4 className="text-sm font-semibold text-slate-700 mb-2">Growth Strategy</h4>
+                            <p className="text-slate-600 text-sm">{idea.phase2Data.strategy.growthStrategy}</p>
+                          </div>
+                          {idea.phase2Data.strategy.keyMilestones && idea.phase2Data.strategy.keyMilestones.length > 0 && (
+                            <div className="bg-emerald-50 rounded-lg p-4">
+                              <h4 className="text-sm font-semibold text-emerald-700 mb-3">Key Milestones</h4>
+                              <div className="space-y-2">
+                                {idea.phase2Data.strategy.keyMilestones.map((milestone, idx) => (
+                                  <div key={idx} className="flex items-center gap-2">
+                                    <span className="w-6 h-6 bg-emerald-200 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold">
+                                      {idx + 1}
+                                    </span>
+                                    <span className="text-slate-700 text-sm">{milestone}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Structural Risks */}
+                    {idea.phase2Data?.structuralRisks && idea.phase2Data.structuralRisks.length > 0 && (
+                      <div className="bg-white rounded-xl border border-slate-200 p-6">
+                        <div className="flex items-center gap-2 mb-6">
+                          <span className="text-2xl">⚡</span>
+                          <h3 className="text-lg font-semibold text-slate-900">Structural Risks</h3>
+                        </div>
+
+                        <div className="space-y-4">
+                          {idea.phase2Data.structuralRisks.map((risk, idx) => (
+                            <div key={idx} className="bg-red-50 rounded-lg p-4 border-l-4 border-red-400">
+                              <h4 className="text-sm font-semibold text-red-700 mb-2">{risk.name}</h4>
+                              <p className="text-slate-700 text-sm mb-2">{risk.description}</p>
+                              <p className="text-slate-500 text-xs italic">{risk.implications}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Operational Risks */}
+                    {idea.phase2Data?.operationalRisks && idea.phase2Data.operationalRisks.length > 0 && (
+                      <div className="bg-white rounded-xl border border-slate-200 p-6">
+                        <div className="flex items-center gap-2 mb-6">
+                          <span className="text-2xl">⚙️</span>
+                          <h3 className="text-lg font-semibold text-slate-900">Operational Risks</h3>
+                        </div>
+
+                        <div className="space-y-4">
+                          {idea.phase2Data.operationalRisks.map((risk, idx) => (
+                            <div key={idx} className="bg-amber-50 rounded-lg p-4 border-l-4 border-amber-400">
+                              <h4 className="text-sm font-semibold text-amber-700 mb-2">{risk.name}</h4>
+                              <p className="text-slate-700 text-sm mb-2">{risk.description}</p>
+                              <p className="text-slate-500 text-xs italic">{risk.implications}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Phase 2 Action Buttons */}
+                    <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
+                      <div className="text-sm text-slate-500">
+                        {idea.phase2Data?.generatedAt && (
+                          <span>Generated: {new Date(idea.phase2Data.generatedAt).toLocaleDateString()}</span>
+                        )}
+                        {idea.phase2Data?.confirmedAt && (
+                          <span className="ml-4 text-green-600 font-medium">
+                            Confirmed: {new Date(idea.phase2Data.confirmedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex gap-3">
+                        {phase2Status === 'generated' && (
+                          <>
+                            <button
+                              onClick={handleGeneratePhase2}
+                              disabled={generatingPhase2}
+                              className="btn btn-secondary"
+                            >
+                              {generatingPhase2 ? 'Regenerating...' : 'Regenerate'}
+                            </button>
+                            <button
+                              onClick={handleConfirmPhase2}
+                              disabled={confirmingPhase2}
+                              className="btn btn-primary"
+                            >
+                              {confirmingPhase2 ? (
+                                <>
+                                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                  Confirming...
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Confirm Phase 2
+                                </>
+                              )}
+                            </button>
+                          </>
+                        )}
+
+                        {phase2Status === 'confirmed' && (
+                          <div className="flex items-center gap-4">
+                            <button
+                              onClick={handleDownloadPhase2PDF}
+                              disabled={downloadingPhase2}
+                              className="btn btn-secondary"
+                            >
+                              {downloadingPhase2 ? (
+                                <>
+                                  <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                  Generating...
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                  </svg>
+                                  Download PDF
+                                </>
+                              )}
+                            </button>
+                            <div className="flex items-center gap-2 text-green-600 font-medium">
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Phase 2 Confirmed
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </main>
 

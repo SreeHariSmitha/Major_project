@@ -75,4 +75,22 @@ export declare const getVersion: (req: AuthenticatedRequest, res: Response, next
  * GET /api/v1/ideas/:id/versions/compare?v1=1&v2=2
  */
 export declare const compareVersions: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * Generate Phase 2 Analysis - Story 8.1-8.4
+ * POST /api/v1/ideas/:id/generate/phase2
+ *
+ * Generates:
+ * - Business Model (customer segments, value proposition, revenue, costs, partnerships, resources)
+ * - Strategy (customer acquisition, pricing, growth, milestones)
+ * - Structural Risks (market, business model, scaling, dependency risks)
+ * - Operational Risks (team, resource, execution, regulatory risks)
+ */
+export declare const generatePhase2: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * Confirm Phase 2 - Story 8.6
+ * POST /api/v1/ideas/:id/confirm/phase2
+ *
+ * Locks Phase 2 and enables Phase 3
+ */
+export declare const confirmPhase2: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
 //# sourceMappingURL=ideaController.d.ts.map

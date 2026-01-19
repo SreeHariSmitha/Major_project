@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import { IPhase1Data, IPhaseStatus } from './Idea';
+import { IPhase1Data, IPhase2Data, IPhaseStatus } from './Idea';
 
 // Version document interface
 export interface IVersion extends Document {
@@ -13,14 +13,7 @@ export interface IVersion extends Document {
   phase: string;
   phaseStatus: IPhaseStatus;
   phase1Data?: IPhase1Data;
-  phase2Data?: {
-    businessModel?: string;
-    strategy?: string;
-    structuralRisks?: string[];
-    operationalRisks?: string[];
-    generatedAt?: Date;
-    confirmedAt?: Date;
-  };
+  phase2Data?: IPhase2Data;
   phase3Data?: {
     pitchDeck?: string;
     changelog?: string;
@@ -73,12 +66,12 @@ const VersionSchema = new Schema<IVersion>(
       },
       phase2: {
         type: String,
-        enum: ['locked', 'pending', 'generated', 'confirmed'],
+        enum: ['locked', 'pending', 'generated', 'confirmed', 'invalidated'],
         default: 'locked',
       },
       phase3: {
         type: String,
-        enum: ['locked', 'pending', 'generated', 'confirmed'],
+        enum: ['locked', 'pending', 'generated', 'confirmed', 'invalidated'],
         default: 'locked',
       },
     },
@@ -104,10 +97,34 @@ const VersionSchema = new Schema<IVersion>(
       confirmedAt: Date,
     },
     phase2Data: {
-      businessModel: String,
-      strategy: String,
-      structuralRisks: [String],
-      operationalRisks: [String],
+      businessModel: {
+        customerSegments: { type: String },
+        valueProposition: { type: String },
+        revenueStreams: { type: String },
+        costStructure: { type: String },
+        keyPartnerships: { type: String },
+        keyResources: { type: String },
+      },
+      strategy: {
+        customerAcquisition: { type: String },
+        pricingStrategy: { type: String },
+        growthStrategy: { type: String },
+        keyMilestones: [{ type: String }],
+      },
+      structuralRisks: [
+        {
+          name: { type: String },
+          description: { type: String },
+          implications: { type: String },
+        },
+      ],
+      operationalRisks: [
+        {
+          name: { type: String },
+          description: { type: String },
+          implications: { type: String },
+        },
+      ],
       generatedAt: Date,
       confirmedAt: Date,
     },

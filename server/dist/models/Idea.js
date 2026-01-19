@@ -63,6 +63,38 @@ const IdeaSchema = new Schema({
         generatedAt: { type: Date },
         confirmedAt: { type: Date },
     },
+    phase2Data: {
+        businessModel: {
+            customerSegments: { type: String },
+            valueProposition: { type: String },
+            revenueStreams: { type: String },
+            costStructure: { type: String },
+            keyPartnerships: { type: String },
+            keyResources: { type: String },
+        },
+        strategy: {
+            customerAcquisition: { type: String },
+            pricingStrategy: { type: String },
+            growthStrategy: { type: String },
+            keyMilestones: [{ type: String }],
+        },
+        structuralRisks: [
+            {
+                name: { type: String },
+                description: { type: String },
+                implications: { type: String },
+            },
+        ],
+        operationalRisks: [
+            {
+                name: { type: String },
+                description: { type: String },
+                implications: { type: String },
+            },
+        ],
+        generatedAt: { type: Date },
+        confirmedAt: { type: Date },
+    },
     version: {
         type: Number,
         default: 1,
