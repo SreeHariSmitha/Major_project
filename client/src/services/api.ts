@@ -94,8 +94,8 @@ export const ideasApi = {
     const response = await apiClient.patch(`/api/v1/ideas/${id}/archive`, { archived });
     return response.data;
   },
-  searchIdeas: async (q: string) => {
-    const response = await apiClient.get('/api/v1/ideas/search', { params: { q } });
+  searchIdeas: async (params: { q: string; archived?: string; phase?: string; status?: string }) => {
+    const response = await apiClient.get('/api/v1/ideas/search', { params });
     return response.data;
   },
   // Phase 1 API endpoints - Story 4.1-4.7

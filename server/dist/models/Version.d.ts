@@ -1,5 +1,5 @@
 import mongoose, { Document } from 'mongoose';
-import { IPhase1Data, IPhase2Data, IPhaseStatus } from './Idea';
+import { IPhase1Data, IPhase2Data, IPhase3Data, IPhaseStatus } from './Idea';
 export interface IVersion extends Document {
     ideaId: mongoose.Types.ObjectId;
     versionNumber: number;
@@ -10,12 +10,7 @@ export interface IVersion extends Document {
     phaseStatus: IPhaseStatus;
     phase1Data?: IPhase1Data;
     phase2Data?: IPhase2Data;
-    phase3Data?: {
-        pitchDeck?: string;
-        changelog?: string;
-        generatedAt?: Date;
-        confirmedAt?: Date;
-    };
+    phase3Data?: IPhase3Data;
     changeType: 'initial' | 'edit' | 'phase1_generated' | 'phase1_confirmed' | 'phase2_generated' | 'phase2_confirmed' | 'phase3_generated' | 'phase3_confirmed';
     changeSummary: string;
     createdAt: Date;

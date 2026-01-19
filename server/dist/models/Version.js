@@ -99,8 +99,75 @@ const VersionSchema = new Schema({
         confirmedAt: Date,
     },
     phase3Data: {
-        pitchDeck: String,
-        changelog: String,
+        pitchDeck: {
+            titleSlide: {
+                slideNumber: { type: Number },
+                title: { type: String },
+                content: { type: String },
+                speakerNotes: { type: String },
+            },
+            problemSlide: {
+                slideNumber: { type: Number },
+                title: { type: String },
+                content: { type: String },
+                speakerNotes: { type: String },
+            },
+            solutionSlide: {
+                slideNumber: { type: Number },
+                title: { type: String },
+                content: { type: String },
+                speakerNotes: { type: String },
+            },
+            marketOpportunitySlide: {
+                slideNumber: { type: Number },
+                title: { type: String },
+                content: { type: String },
+                speakerNotes: { type: String },
+            },
+            businessModelSlide: {
+                slideNumber: { type: Number },
+                title: { type: String },
+                content: { type: String },
+                speakerNotes: { type: String },
+            },
+            tractionSlide: {
+                slideNumber: { type: Number },
+                title: { type: String },
+                content: { type: String },
+                speakerNotes: { type: String },
+            },
+            competitionSlide: {
+                slideNumber: { type: Number },
+                title: { type: String },
+                content: { type: String },
+                speakerNotes: { type: String },
+            },
+            teamSlide: {
+                slideNumber: { type: Number },
+                title: { type: String },
+                content: { type: String },
+                speakerNotes: { type: String },
+            },
+            financialsSlide: {
+                slideNumber: { type: Number },
+                title: { type: String },
+                content: { type: String },
+                speakerNotes: { type: String },
+            },
+            askSlide: {
+                slideNumber: { type: Number },
+                title: { type: String },
+                content: { type: String },
+                speakerNotes: { type: String },
+            },
+        },
+        changelog: [
+            {
+                section: { type: String },
+                changeType: { type: String, enum: ['added', 'modified', 'removed'] },
+                description: { type: String },
+            },
+        ],
         generatedAt: Date,
         confirmedAt: Date,
     },

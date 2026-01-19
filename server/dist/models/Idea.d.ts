@@ -68,6 +68,43 @@ export interface IPhase2Data {
     confirmedAt?: Date;
 }
 /**
+ * Pitch Deck Slide Interface - Individual slide in the pitch deck
+ */
+export interface IPitchDeckSlide {
+    slideNumber: number;
+    title: string;
+    content: string;
+    speakerNotes?: string;
+}
+/**
+ * Changelog Entry Interface - What changed between versions
+ */
+export interface IChangelogEntry {
+    section: string;
+    changeType: 'added' | 'modified' | 'removed';
+    description: string;
+}
+/**
+ * Phase 3 Data Interface - Pitch Deck and Changelog
+ */
+export interface IPhase3Data {
+    pitchDeck?: {
+        titleSlide: IPitchDeckSlide;
+        problemSlide: IPitchDeckSlide;
+        solutionSlide: IPitchDeckSlide;
+        marketOpportunitySlide: IPitchDeckSlide;
+        businessModelSlide: IPitchDeckSlide;
+        tractionSlide: IPitchDeckSlide;
+        competitionSlide: IPitchDeckSlide;
+        teamSlide: IPitchDeckSlide;
+        financialsSlide: IPitchDeckSlide;
+        askSlide: IPitchDeckSlide;
+    };
+    changelog?: IChangelogEntry[];
+    generatedAt?: Date;
+    confirmedAt?: Date;
+}
+/**
  * PhaseStatus Interface - Track which phases have been completed/confirmed
  *
  * Status flow:
@@ -93,6 +130,7 @@ export interface IIdea extends Document {
     phaseStatus: IPhaseStatus;
     phase1Data?: IPhase1Data;
     phase2Data?: IPhase2Data;
+    phase3Data?: IPhase3Data;
     version: number;
     archived: boolean;
     createdAt: Date;

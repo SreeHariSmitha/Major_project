@@ -93,4 +93,28 @@ export declare const generatePhase2: (req: AuthenticatedRequest, res: Response, 
  * Locks Phase 2 and enables Phase 3
  */
 export declare const confirmPhase2: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * POST /api/v1/ideas/:id/generate/phase3
+ * Generate Phase 3 pitch deck content
+ * Story 9.1-9.2
+ *
+ * Generates:
+ * - 10-slide investor pitch deck
+ * - Changelog comparing to previous version
+ *
+ * Requirements:
+ * - Phase 2 must be confirmed
+ * - Phase 3 not already confirmed (locked)
+ */
+export declare const generatePhase3: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * POST /api/v1/ideas/:id/confirm/phase3
+ * Confirm and lock Phase 3 (complete idea validation)
+ * Story 9.5
+ *
+ * Requirements:
+ * - Phase 3 must be generated
+ * - Phase 3 not already confirmed
+ */
+export declare const confirmPhase3: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
 //# sourceMappingURL=ideaController.d.ts.map

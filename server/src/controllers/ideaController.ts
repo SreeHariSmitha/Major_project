@@ -497,7 +497,7 @@ export const searchIdeas = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { q } = req.query;
+    const { q, archived, phase, status } = req.query;
 
     if (!q || typeof q !== 'string') {
       res.status(400).json({
@@ -510,16 +510,49 @@ export const searchIdeas = async (
       return;
     }
 
-    // Search in title and description (case-insensitive)
+    // Build filter with search query
     const searchRegex = new RegExp(q, 'i');
-    const ideas = await Idea.find({
+    const filter: any = {
       userId: req.userId,
-      archived: false,
       $or: [
         { title: searchRegex },
         { description: searchRegex },
+        { 'phase1Data.cleanedSummary': searchRegex },
+        { 'phase1Data.killAssumption': searchRegex },
       ],
-    })
+    };
+
+    // Apply archived filter
+    if (archived === 'true') {
+      filter.archived = true;
+    } else if (archived === 'false') {
+      filter.archived = false;
+    }
+    // If archived not specified, search all (both archived and active)
+
+    // Apply phase filter
+    if (phase) {
+      filter.phase = phase;
+    }
+
+    // Apply status filter (In Progress, Completed)
+    if (status === 'in_progress') {
+      filter.$and = [
+        { archived: false },
+        {
+          $or: [
+            { phase: { $in: ['Phase 1', 'Phase 2'] } },
+            { phase: 'Phase 3', 'phase3Data.confirmedAt': { $exists: false } },
+          ],
+        },
+      ];
+    } else if (status === 'completed') {
+      filter.phase = 'Phase 3';
+      filter['phase3Data.confirmedAt'] = { $exists: true };
+      filter.archived = false;
+    }
+
+    const ideas = await Idea.find(filter)
       .sort({ createdAt: -1 })
       .lean();
 
@@ -532,11 +565,16 @@ export const searchIdeas = async (
         description: idea.description,
         phase: idea.phase,
         phaseStatus: idea.phaseStatus,
+        phase1Data: idea.phase1Data,
+        phase2Data: idea.phase2Data,
+        phase3Data: idea.phase3Data,
         version: idea.version,
         archived: idea.archived,
+        killAssumption: idea.phase1Data?.killAssumption,
         createdAt: idea.createdAt,
         updatedAt: idea.updatedAt,
       })),
+      query: q,
     });
   } catch (error) {
     console.error('Search ideas error:', error);

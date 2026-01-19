@@ -1,5 +1,5 @@
 import express from 'express';
-import { createIdea, listIdeas, getIdea, updateIdea, deleteIdea, archiveIdea, searchIdeas, generatePhase1, confirmPhase1, generatePhase2, confirmPhase2, getVersionHistory, getVersion, compareVersions, refineSection, } from '../controllers/ideaController.js';
+import { createIdea, listIdeas, getIdea, updateIdea, deleteIdea, archiveIdea, searchIdeas, generatePhase1, confirmPhase1, generatePhase2, confirmPhase2, generatePhase3, confirmPhase3, getVersionHistory, getVersion, compareVersions, refineSection, } from '../controllers/ideaController.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 /**
  * Idea Routes
@@ -290,6 +290,69 @@ router.post('/:id/generate/phase2', generatePhase2);
  * 404 - Idea not found
  */
 router.post('/:id/confirm/phase2', confirmPhase2);
+/**
+ * POST /api/v1/ideas/:id/generate/phase3
+ * Generate Phase 3 investor-ready Pitch Deck
+ * Story 9.1-9.2
+ *
+ * Generates:
+ * - 10-slide Pitch Deck (Title, Problem, Solution, Market Opportunity, Business Model, Traction, Competition, Team, Financials, Ask)
+ * - Changelog of what changed between versions
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     id: string
+ *     title: string
+ *     phase: "Phase 3"
+ *     phaseStatus: { phase1: "confirmed", phase2: "confirmed", phase3: "generated" }
+ *     phase3Data: {
+ *       pitchDeck: {
+ *         titleSlide, problemSlide, solutionSlide, marketOpportunitySlide,
+ *         businessModelSlide, tractionSlide, competitionSlide, teamSlide,
+ *         financialsSlide, askSlide
+ *       }
+ *       changelog: [{ section, changeType, description }]
+ *       generatedAt: Date
+ *     }
+ *     version: number
+ *     updatedAt: Date
+ *   }
+ * }
+ *
+ * Error responses:
+ * 400 - Phase 2 not confirmed (locked)
+ * 400 - Phase 3 already confirmed (locked)
+ * 404 - Idea not found
+ */
+router.post('/:id/generate/phase3', generatePhase3);
+/**
+ * POST /api/v1/ideas/:id/confirm/phase3
+ * Confirm and lock Phase 3, completing the validation journey
+ * Story 9.5
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     id: string
+ *     title: string
+ *     phase: string
+ *     phaseStatus: { phase1: "confirmed", phase2: "confirmed", phase3: "confirmed" }
+ *     phase3Data: { ..., confirmedAt: Date }
+ *     version: number
+ *     updatedAt: Date
+ *     message: "Phase 3 confirmed. Your startup idea validation is complete!"
+ *   }
+ * }
+ *
+ * Error responses:
+ * 400 - Phase 3 not generated yet
+ * 400 - Phase 3 already confirmed
+ * 404 - Idea not found
+ */
+router.post('/:id/confirm/phase3', confirmPhase3);
 /**
  * POST /api/v1/ideas/:id/sections/:sectionName
  * Refine a specific section with user feedback
