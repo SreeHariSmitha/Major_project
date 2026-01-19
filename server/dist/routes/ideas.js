@@ -1,5 +1,5 @@
 import express from 'express';
-import { createIdea, listIdeas, getIdea, updateIdea, deleteIdea, archiveIdea, searchIdeas, generatePhase1, confirmPhase1, } from '../controllers/ideaController.js';
+import { createIdea, listIdeas, getIdea, updateIdea, deleteIdea, archiveIdea, searchIdeas, generatePhase1, confirmPhase1, getVersionHistory, getVersion, compareVersions, } from '../controllers/ideaController.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 /**
  * Idea Routes
@@ -227,5 +227,79 @@ router.post('/:id/generate/phase1', generatePhase1);
  * 404 - Idea not found
  */
 router.post('/:id/confirm/phase1', confirmPhase1);
+/**
+ * GET /api/v1/ideas/:id/versions
+ * Get version history for an idea
+ * Story 5.2 & 5.3
+ *
+ * Query parameters:
+ * - page: number (optional, default 1)
+ * - limit: number (optional, default 20)
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     versions: [
+ *       {
+ *         versionNumber: number
+ *         isActive: boolean
+ *         changeType: string
+ *         changeSummary: string
+ *         createdAt: Date
+ *       }
+ *     ],
+ *     pagination: { page, limit, total, pages }
+ *   }
+ * }
+ */
+router.get('/:id/versions', getVersionHistory);
+/**
+ * GET /api/v1/ideas/:id/versions/compare?v1=1&v2=2
+ * Compare two versions
+ * Story 5.5
+ *
+ * Query parameters:
+ * - v1: number (required - first version number)
+ * - v2: number (required - second version number)
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     version1: { versionNumber, createdAt, changeSummary }
+ *     version2: { versionNumber, createdAt, changeSummary }
+ *     diff: { changes: [...], summary: {...} }
+ *   }
+ * }
+ */
+router.get('/:id/versions/compare', compareVersions);
+/**
+ * GET /api/v1/ideas/:id/versions/:versionNumber
+ * Get a specific version (read-only)
+ * Story 5.4
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     version: {
+ *       versionNumber: number
+ *       isActive: boolean
+ *       title: string
+ *       description: string
+ *       phase: string
+ *       phaseStatus: object
+ *       phase1Data?: object
+ *       changeType: string
+ *       changeSummary: string
+ *       createdAt: Date
+ *     }
+ *     totalVersions: number
+ *     isReadOnly: boolean
+ *   }
+ * }
+ */
+router.get('/:id/versions/:versionNumber', getVersion);
 export default router;
 //# sourceMappingURL=ideas.js.map

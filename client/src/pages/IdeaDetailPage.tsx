@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ideasApi } from '../services/api';
 import html2pdf from 'html2pdf.js';
+import { VersionHistoryPanel } from '../components/VersionHistoryPanel';
 
 interface MarketFeasibility {
   marketSize: string;
@@ -309,7 +310,11 @@ export function IdeaDetailPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <VersionHistoryPanel
+                ideaId={idea.id}
+                currentVersion={idea.version}
+              />
               <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                 idea.phase === 'Phase 1' ? 'bg-amber-100 text-amber-700' :
                 idea.phase === 'Phase 2' ? 'bg-blue-100 text-blue-700' :

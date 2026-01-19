@@ -107,6 +107,23 @@ export const ideasApi = {
     const response = await apiClient.post(`/api/v1/ideas/${id}/confirm/phase1`);
     return response.data;
   },
+  // Version Control API endpoints - Story 5.1-5.6
+  getVersionHistory: async (id: string, page: number = 1, limit: number = 20) => {
+    const response = await apiClient.get(`/api/v1/ideas/${id}/versions`, {
+      params: { page, limit },
+    });
+    return response.data;
+  },
+  getVersion: async (id: string, versionNumber: number) => {
+    const response = await apiClient.get(`/api/v1/ideas/${id}/versions/${versionNumber}`);
+    return response.data;
+  },
+  compareVersions: async (id: string, v1: number, v2: number) => {
+    const response = await apiClient.get(`/api/v1/ideas/${id}/versions/compare`, {
+      params: { v1, v2 },
+    });
+    return response.data;
+  },
 };
 
 export default apiClient;

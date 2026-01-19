@@ -53,4 +53,19 @@ export declare const generatePhase1: (req: AuthenticatedRequest, res: Response, 
  * Locks Phase 1 and enables Phase 2
  */
 export declare const confirmPhase1: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * Get Version History - Story 5.2 & 5.3
+ * GET /api/v1/ideas/:id/versions
+ */
+export declare const getVersionHistory: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * Get Specific Version - Story 5.4
+ * GET /api/v1/ideas/:id/versions/:versionNumber
+ */
+export declare const getVersion: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * Compare Two Versions - Story 5.5
+ * GET /api/v1/ideas/:id/versions/compare?v1=1&v2=2
+ */
+export declare const compareVersions: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
 //# sourceMappingURL=ideaController.d.ts.map

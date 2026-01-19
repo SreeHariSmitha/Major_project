@@ -1,4 +1,5 @@
 import { Idea } from '../models/Idea.js';
+import Version from '../models/Version.js';
 import { z } from 'zod';
 import { ZodError } from 'zod';
 /**
@@ -75,6 +76,13 @@ export const createIdea = async (req, res, next) => {
             archived: false,
         });
         await idea.save();
+        // Create initial version (Story 5.1)
+        await Version.createVersion(idea._id, {
+            title: idea.title,
+            description: idea.description,
+            phase: idea.phase,
+            phaseStatus: idea.phaseStatus,
+        }, 'initial', 'Initial idea creation');
         res.status(201).json({
             success: true,
             data: {
@@ -234,13 +242,8 @@ export const updateIdea = async (req, res, next) => {
             }
             return;
         }
-        // Update idea
-        const updateData = {};
-        if (validatedData.title !== undefined)
-            updateData.title = validatedData.title;
-        if (validatedData.description !== undefined)
-            updateData.description = validatedData.description;
-        const idea = await Idea.findOneAndUpdate({ _id: id, userId: req.userId }, { $set: updateData }, { new: true }).lean();
+        // Find idea first
+        const idea = await Idea.findOne({ _id: id, userId: req.userId });
         if (!idea) {
             res.status(404).json({
                 success: false,
@@ -250,6 +253,33 @@ export const updateIdea = async (req, res, next) => {
                 },
             });
             return;
+        }
+        // Check what changed for version summary
+        const changes = [];
+        if (validatedData.title !== undefined && validatedData.title !== idea.title) {
+            changes.push('title');
+        }
+        if (validatedData.description !== undefined && validatedData.description !== idea.description) {
+            changes.push('description');
+        }
+        // Only create version if something actually changed
+        if (changes.length > 0) {
+            // Increment version number
+            idea.version = (idea.version || 1) + 1;
+            // Update fields
+            if (validatedData.title !== undefined)
+                idea.title = validatedData.title;
+            if (validatedData.description !== undefined)
+                idea.description = validatedData.description;
+            await idea.save();
+            // Create new version (Story 5.1)
+            await Version.createVersion(idea._id, {
+                title: idea.title,
+                description: idea.description,
+                phase: idea.phase,
+                phaseStatus: idea.phaseStatus,
+                phase1Data: idea.phase1Data,
+            }, 'edit', `Updated ${changes.join(' and ')}`);
         }
         res.status(200).json({
             success: true,
@@ -471,7 +501,16 @@ export const generatePhase1 = async (req, res, next) => {
         // Update idea with Phase 1 data
         idea.phase1Data = phase1Data;
         idea.phaseStatus.phase1 = 'generated';
+        idea.version = (idea.version || 1) + 1;
         await idea.save();
+        // Create version for phase generation (Story 5.1)
+        await Version.createVersion(idea._id, {
+            title: idea.title,
+            description: idea.description,
+            phase: idea.phase,
+            phaseStatus: idea.phaseStatus,
+            phase1Data: idea.phase1Data,
+        }, 'phase1_generated', 'Phase 1 analysis generated');
         res.status(200).json({
             success: true,
             data: {
@@ -548,7 +587,16 @@ export const confirmPhase1 = async (req, res, next) => {
         if (idea.phase1Data) {
             idea.phase1Data.confirmedAt = new Date();
         }
+        idea.version = (idea.version || 1) + 1;
         await idea.save();
+        // Create version for phase confirmation (Story 5.1)
+        await Version.createVersion(idea._id, {
+            title: idea.title,
+            description: idea.description,
+            phase: idea.phase,
+            phaseStatus: idea.phaseStatus,
+            phase1Data: idea.phase1Data,
+        }, 'phase1_confirmed', 'Phase 1 confirmed');
         res.status(200).json({
             success: true,
             data: {
@@ -638,5 +686,294 @@ function generatePhase1Content(title, description) {
         killAssumptionTestGuidance,
         generatedAt: new Date(),
     };
+}
+/**
+ * Get Version History - Story 5.2 & 5.3
+ * GET /api/v1/ideas/:id/versions
+ */
+export const getVersionHistory = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        // Verify user owns this idea
+        const idea = await Idea.findOne({ _id: id, userId: req.userId });
+        if (!idea) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    code: 'NOT_FOUND',
+                    message: 'Idea not found',
+                },
+            });
+            return;
+        }
+        // Get version history
+        const { versions, total, pages } = await Version.getHistory(idea._id, page, limit);
+        res.status(200).json({
+            success: true,
+            data: {
+                versions: versions.map(v => ({
+                    versionNumber: v.versionNumber,
+                    isActive: v.isActive,
+                    changeType: v.changeType,
+                    changeSummary: v.changeSummary,
+                    createdAt: v.createdAt,
+                })),
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages,
+                },
+            },
+        });
+    }
+    catch (error) {
+        console.error('Get version history error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_ERROR',
+                message: 'Failed to fetch version history',
+            },
+        });
+    }
+};
+/**
+ * Get Specific Version - Story 5.4
+ * GET /api/v1/ideas/:id/versions/:versionNumber
+ */
+export const getVersion = async (req, res, next) => {
+    try {
+        const { id, versionNumber } = req.params;
+        // Verify user owns this idea
+        const idea = await Idea.findOne({ _id: id, userId: req.userId });
+        if (!idea) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    code: 'NOT_FOUND',
+                    message: 'Idea not found',
+                },
+            });
+            return;
+        }
+        // Get specific version
+        const version = await Version.findOne({
+            ideaId: id,
+            versionNumber: parseInt(versionNumber),
+        });
+        if (!version) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    code: 'VERSION_NOT_FOUND',
+                    message: `Version ${versionNumber} not found`,
+                },
+            });
+            return;
+        }
+        // Get total version count
+        const totalVersions = await Version.countDocuments({ ideaId: id });
+        res.status(200).json({
+            success: true,
+            data: {
+                version: {
+                    versionNumber: version.versionNumber,
+                    isActive: version.isActive,
+                    title: version.title,
+                    description: version.description,
+                    phase: version.phase,
+                    phaseStatus: version.phaseStatus,
+                    phase1Data: version.phase1Data,
+                    phase2Data: version.phase2Data,
+                    phase3Data: version.phase3Data,
+                    changeType: version.changeType,
+                    changeSummary: version.changeSummary,
+                    createdAt: version.createdAt,
+                },
+                totalVersions,
+                isReadOnly: !version.isActive,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Get version error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_ERROR',
+                message: 'Failed to fetch version',
+            },
+        });
+    }
+};
+/**
+ * Compare Two Versions - Story 5.5
+ * GET /api/v1/ideas/:id/versions/compare?v1=1&v2=2
+ */
+export const compareVersions = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const v1 = parseInt(req.query.v1);
+        const v2 = parseInt(req.query.v2);
+        if (!v1 || !v2) {
+            res.status(400).json({
+                success: false,
+                error: {
+                    code: 'VALIDATION_ERROR',
+                    message: 'Both v1 and v2 query parameters are required',
+                },
+            });
+            return;
+        }
+        // Verify user owns this idea
+        const idea = await Idea.findOne({ _id: id, userId: req.userId });
+        if (!idea) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    code: 'NOT_FOUND',
+                    message: 'Idea not found',
+                },
+            });
+            return;
+        }
+        // Get both versions
+        const [version1, version2] = await Promise.all([
+            Version.findOne({ ideaId: id, versionNumber: v1 }),
+            Version.findOne({ ideaId: id, versionNumber: v2 }),
+        ]);
+        if (!version1 || !version2) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    code: 'VERSION_NOT_FOUND',
+                    message: 'One or both versions not found',
+                },
+            });
+            return;
+        }
+        // Generate diff
+        const diff = generateDiff(version1, version2);
+        res.status(200).json({
+            success: true,
+            data: {
+                version1: {
+                    versionNumber: version1.versionNumber,
+                    createdAt: version1.createdAt,
+                    changeSummary: version1.changeSummary,
+                },
+                version2: {
+                    versionNumber: version2.versionNumber,
+                    createdAt: version2.createdAt,
+                    changeSummary: version2.changeSummary,
+                },
+                diff,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Compare versions error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_ERROR',
+                message: 'Failed to compare versions',
+            },
+        });
+    }
+};
+/**
+ * Helper function to generate diff between two versions
+ */
+function generateDiff(v1, v2) {
+    const changes = [];
+    // Compare title
+    if (v1.title !== v2.title) {
+        changes.push({
+            field: 'title',
+            type: 'changed',
+            oldValue: v1.title,
+            newValue: v2.title,
+        });
+    }
+    // Compare description
+    if (v1.description !== v2.description) {
+        changes.push({
+            field: 'description',
+            type: 'changed',
+            oldValue: v1.description,
+            newValue: v2.description,
+        });
+    }
+    // Compare phase
+    if (v1.phase !== v2.phase) {
+        changes.push({
+            field: 'phase',
+            type: 'changed',
+            oldValue: v1.phase,
+            newValue: v2.phase,
+        });
+    }
+    // Compare phase1Data
+    if (v1.phase1Data?.cleanSummary !== v2.phase1Data?.cleanSummary) {
+        if (!v1.phase1Data?.cleanSummary && v2.phase1Data?.cleanSummary) {
+            changes.push({
+                field: 'phase1Data.cleanSummary',
+                type: 'added',
+                newValue: v2.phase1Data.cleanSummary,
+            });
+        }
+        else if (v1.phase1Data?.cleanSummary && !v2.phase1Data?.cleanSummary) {
+            changes.push({
+                field: 'phase1Data.cleanSummary',
+                type: 'removed',
+                oldValue: v1.phase1Data.cleanSummary,
+            });
+        }
+        else {
+            changes.push({
+                field: 'phase1Data.cleanSummary',
+                type: 'changed',
+                oldValue: v1.phase1Data?.cleanSummary,
+                newValue: v2.phase1Data?.cleanSummary,
+            });
+        }
+    }
+    // Compare killAssumption
+    if (v1.phase1Data?.killAssumption !== v2.phase1Data?.killAssumption) {
+        if (!v1.phase1Data?.killAssumption && v2.phase1Data?.killAssumption) {
+            changes.push({
+                field: 'phase1Data.killAssumption',
+                type: 'added',
+                newValue: v2.phase1Data.killAssumption,
+            });
+        }
+        else if (v1.phase1Data?.killAssumption && !v2.phase1Data?.killAssumption) {
+            changes.push({
+                field: 'phase1Data.killAssumption',
+                type: 'removed',
+                oldValue: v1.phase1Data.killAssumption,
+            });
+        }
+        else {
+            changes.push({
+                field: 'phase1Data.killAssumption',
+                type: 'changed',
+                oldValue: v1.phase1Data?.killAssumption,
+                newValue: v2.phase1Data?.killAssumption,
+            });
+        }
+    }
+    // Summary
+    const summary = {
+        totalChanges: changes.length,
+        added: changes.filter(c => c.type === 'added').length,
+        removed: changes.filter(c => c.type === 'removed').length,
+        modified: changes.filter(c => c.type === 'changed').length,
+    };
+    return { changes, summary };
 }
 //# sourceMappingURL=ideaController.js.map
