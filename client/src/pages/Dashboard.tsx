@@ -23,7 +23,7 @@ export function Dashboard() {
   const [formData, setFormData] = useState({ title: '', description: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
 
   useEffect(() => {
     loadIdeas();

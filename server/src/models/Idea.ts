@@ -76,6 +76,46 @@ export interface IPhase2Data {
 }
 
 /**
+ * Pitch Deck Slide Interface - Individual slide in the pitch deck
+ */
+export interface IPitchDeckSlide {
+  slideNumber: number;
+  title: string;
+  content: string;
+  speakerNotes?: string;
+}
+
+/**
+ * Changelog Entry Interface - What changed between versions
+ */
+export interface IChangelogEntry {
+  section: string;
+  changeType: 'added' | 'modified' | 'removed';
+  description: string;
+}
+
+/**
+ * Phase 3 Data Interface - Pitch Deck and Changelog
+ */
+export interface IPhase3Data {
+  pitchDeck?: {
+    titleSlide: IPitchDeckSlide;
+    problemSlide: IPitchDeckSlide;
+    solutionSlide: IPitchDeckSlide;
+    marketOpportunitySlide: IPitchDeckSlide;
+    businessModelSlide: IPitchDeckSlide;
+    tractionSlide: IPitchDeckSlide;
+    competitionSlide: IPitchDeckSlide;
+    teamSlide: IPitchDeckSlide;
+    financialsSlide: IPitchDeckSlide;
+    askSlide: IPitchDeckSlide;
+  };
+  changelog?: IChangelogEntry[];
+  generatedAt?: Date;
+  confirmedAt?: Date;
+}
+
+/**
  * PhaseStatus Interface - Track which phases have been completed/confirmed
  *
  * Status flow:
@@ -102,6 +142,7 @@ export interface IIdea extends Document {
   phaseStatus: IPhaseStatus;
   phase1Data?: IPhase1Data;
   phase2Data?: IPhase2Data;
+  phase3Data?: IPhase3Data;
   version: number;
   archived: boolean;
   createdAt: Date;
@@ -200,6 +241,79 @@ const IdeaSchema = new Schema<IIdea>(
           name: { type: String },
           description: { type: String },
           implications: { type: String },
+        },
+      ],
+      generatedAt: { type: Date },
+      confirmedAt: { type: Date },
+    },
+    phase3Data: {
+      pitchDeck: {
+        titleSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        problemSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        solutionSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        marketOpportunitySlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        businessModelSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        tractionSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        competitionSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        teamSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        financialsSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        askSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+      },
+      changelog: [
+        {
+          section: { type: String },
+          changeType: { type: String, enum: ['added', 'modified', 'removed'] },
+          description: { type: String },
         },
       ],
       generatedAt: { type: Date },

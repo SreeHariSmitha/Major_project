@@ -116,6 +116,15 @@ export const ideasApi = {
     const response = await apiClient.post(`/api/v1/ideas/${id}/confirm/phase2`);
     return response.data;
   },
+  // Phase 3 API endpoints - Story 9.1-9.5
+  generatePhase3: async (id: string) => {
+    const response = await apiClient.post(`/api/v1/ideas/${id}/generate/phase3`);
+    return response.data;
+  },
+  confirmPhase3: async (id: string) => {
+    const response = await apiClient.post(`/api/v1/ideas/${id}/confirm/phase3`);
+    return response.data;
+  },
   // Version Control API endpoints - Story 5.1-5.6
   getVersionHistory: async (id: string, page: number = 1, limit: number = 20) => {
     const response = await apiClient.get(`/api/v1/ideas/${id}/versions`, {

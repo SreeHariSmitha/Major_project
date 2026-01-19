@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
-import { IPhase1Data, IPhase2Data, IPhaseStatus } from './Idea';
+import { IPhase1Data, IPhase2Data, IPhase3Data, IPhaseStatus } from './Idea';
 
 // Version document interface
 export interface IVersion extends Document {
@@ -14,12 +14,7 @@ export interface IVersion extends Document {
   phaseStatus: IPhaseStatus;
   phase1Data?: IPhase1Data;
   phase2Data?: IPhase2Data;
-  phase3Data?: {
-    pitchDeck?: string;
-    changelog?: string;
-    generatedAt?: Date;
-    confirmedAt?: Date;
-  };
+  phase3Data?: IPhase3Data;
 
   // Version metadata
   changeType: 'initial' | 'edit' | 'phase1_generated' | 'phase1_confirmed' | 'phase2_generated' | 'phase2_confirmed' | 'phase3_generated' | 'phase3_confirmed';
@@ -129,8 +124,75 @@ const VersionSchema = new Schema<IVersion>(
       confirmedAt: Date,
     },
     phase3Data: {
-      pitchDeck: String,
-      changelog: String,
+      pitchDeck: {
+        titleSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        problemSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        solutionSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        marketOpportunitySlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        businessModelSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        tractionSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        competitionSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        teamSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        financialsSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+        askSlide: {
+          slideNumber: { type: Number },
+          title: { type: String },
+          content: { type: String },
+          speakerNotes: { type: String },
+        },
+      },
+      changelog: [
+        {
+          section: { type: String },
+          changeType: { type: String, enum: ['added', 'modified', 'removed'] },
+          description: { type: String },
+        },
+      ],
       generatedAt: Date,
       confirmedAt: Date,
     },

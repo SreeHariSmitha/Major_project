@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ideasApi } from '../services/api';
@@ -60,6 +60,37 @@ interface Phase2Data {
   confirmedAt?: string;
 }
 
+interface PitchDeckSlide {
+  slideNumber: number;
+  title: string;
+  content: string;
+  speakerNotes?: string;
+}
+
+interface ChangelogEntry {
+  section: string;
+  changeType: 'added' | 'modified' | 'removed';
+  description: string;
+}
+
+interface Phase3Data {
+  pitchDeck?: {
+    titleSlide: PitchDeckSlide;
+    problemSlide: PitchDeckSlide;
+    solutionSlide: PitchDeckSlide;
+    marketOpportunitySlide: PitchDeckSlide;
+    businessModelSlide: PitchDeckSlide;
+    tractionSlide: PitchDeckSlide;
+    competitionSlide: PitchDeckSlide;
+    teamSlide: PitchDeckSlide;
+    financialsSlide: PitchDeckSlide;
+    askSlide: PitchDeckSlide;
+  };
+  changelog?: ChangelogEntry[];
+  generatedAt?: string;
+  confirmedAt?: string;
+}
+
 interface PhaseStatus {
   // New format
   phase1?: 'pending' | 'generated' | 'confirmed';
@@ -79,6 +110,7 @@ interface Idea {
   phaseStatus: PhaseStatus;
   phase1Data?: Phase1Data;
   phase2Data?: Phase2Data;
+  phase3Data?: Phase3Data;
   version: number;
   archived: boolean;
   createdAt: string;
@@ -98,7 +130,9 @@ export function IdeaDetailPage() {
   const [isRefining, setIsRefining] = useState(false);
   const [generatingPhase2, setGeneratingPhase2] = useState(false);
   const [confirmingPhase2, setConfirmingPhase2] = useState(false);
-  const phase1ContentRef = useRef<HTMLDivElement>(null);
+  const [generatingPhase3, setGeneratingPhase3] = useState(false);
+  const [confirmingPhase3, setConfirmingPhase3] = useState(false);
+  const [downloadingPhase3, setDownloadingPhase3] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -207,6 +241,116 @@ export function IdeaDetailPage() {
     }
   };
 
+  const handleGeneratePhase3 = async () => {
+    if (!id) return;
+
+    try {
+      setGeneratingPhase3(true);
+      toast.info('Generating Phase 3 pitch deck...');
+      const response = await ideasApi.generatePhase3(id);
+      if (response.success && response.data) {
+        setIdea(response.data);
+        toast.success('Phase 3 pitch deck generated successfully!');
+      } else {
+        toast.error(response.error?.message || 'Failed to generate Phase 3');
+      }
+    } catch (error) {
+      console.error('Error generating Phase 3:', error);
+      toast.error('Error generating Phase 3 pitch deck');
+    } finally {
+      setGeneratingPhase3(false);
+    }
+  };
+
+  const handleConfirmPhase3 = async () => {
+    if (!id) return;
+
+    try {
+      setConfirmingPhase3(true);
+      const response = await ideasApi.confirmPhase3(id);
+      if (response.success && response.data) {
+        setIdea(response.data);
+        toast.success('Phase 3 confirmed! Your startup idea validation is complete!');
+      } else {
+        toast.error(response.error?.message || 'Failed to confirm Phase 3');
+      }
+    } catch (error) {
+      console.error('Error confirming Phase 3:', error);
+      toast.error('Error confirming Phase 3');
+    } finally {
+      setConfirmingPhase3(false);
+    }
+  };
+
+  const handleDownloadPhase3PDF = async () => {
+    if (!idea || !idea.phase3Data?.pitchDeck) {
+      toast.error('No Phase 3 data to download');
+      return;
+    }
+
+    try {
+      setDownloadingPhase3(true);
+      toast.info('Generating Pitch Deck PDF...');
+
+      const deck = idea.phase3Data.pitchDeck;
+      const slides = [
+        deck.titleSlide,
+        deck.problemSlide,
+        deck.solutionSlide,
+        deck.marketOpportunitySlide,
+        deck.businessModelSlide,
+        deck.tractionSlide,
+        deck.competitionSlide,
+        deck.teamSlide,
+        deck.financialsSlide,
+        deck.askSlide,
+      ];
+
+      const pdfContent = document.createElement('div');
+      pdfContent.innerHTML = `
+        <div style="font-family: Arial, sans-serif;">
+          ${slides.map((slide, index) => `
+            <div style="page-break-after: ${index < slides.length - 1 ? 'always' : 'auto'}; padding: 40px; min-height: 700px; display: flex; flex-direction: column;">
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="background: #4F46E5; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px;">Slide ${slide.slideNumber}</span>
+              </div>
+              <h1 style="color: #1E293B; font-size: 28px; text-align: center; margin: 0 0 30px 0;">${slide.title}</h1>
+              <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+                <div style="color: #475569; font-size: 18px; line-height: 1.8; text-align: center; max-width: 600px; white-space: pre-line;">${slide.content}</div>
+              </div>
+              ${slide.speakerNotes ? `
+                <div style="margin-top: 30px; padding: 15px; background: #F8FAFC; border-radius: 8px; border-left: 4px solid #4F46E5;">
+                  <p style="color: #64748B; font-size: 12px; margin: 0 0 5px 0; font-weight: bold;">SPEAKER NOTES</p>
+                  <p style="color: #64748B; font-size: 12px; margin: 0; line-height: 1.5;">${slide.speakerNotes}</p>
+                </div>
+              ` : ''}
+            </div>
+          `).join('')}
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #E2E8F0; text-align: center; color: #94A3B8; font-size: 12px;">
+            <p style="margin: 0;">Generated by Startup Validator Platform</p>
+            <p style="margin: 5px 0 0 0;">${new Date().toLocaleDateString()} | Investor Pitch Deck</p>
+          </div>
+        </div>
+      `;
+
+      const opt = {
+        margin: 10,
+        filename: `${idea.title.replace(/[^a-zA-Z0-9]/g, '_')}_Pitch_Deck.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'landscape' as const }
+      };
+
+      await html2pdf().set(opt).from(pdfContent).save();
+      toast.success('Pitch Deck PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating Phase 3 PDF:', error);
+      toast.error('Failed to generate Pitch Deck PDF');
+    } finally {
+      setDownloadingPhase3(false);
+    }
+  };
+
   const handleDownloadPDF = async () => {
     if (!idea || !idea.phase1Data) {
       toast.error('No Phase 1 data to download');
@@ -288,9 +432,9 @@ export function IdeaDetailPage() {
       const opt = {
         margin: 10,
         filename: `${idea.title.replace(/[^a-zA-Z0-9]/g, '_')}_Phase1_Report.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg' as const, quality: 0.98 },
         html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
       };
 
       await html2pdf().set(opt).from(pdfContent).save();
@@ -415,9 +559,9 @@ export function IdeaDetailPage() {
       const opt = {
         margin: 10,
         filename: `${idea.title.replace(/[^a-zA-Z0-9]/g, '_')}_Phase2_Report.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg' as const, quality: 0.98 },
         html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
       };
 
       await html2pdf().set(opt).from(pdfContent).save();
@@ -1224,6 +1368,274 @@ export function IdeaDetailPage() {
                         )}
                       </div>
                     </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Phase 3 Section */}
+          {(() => {
+            const phase3Status = getPhaseStepperStatus(3);
+            const hasPhase3Data = idea.phase3Data && idea.phase3Data.pitchDeck;
+
+            return (
+              <div className="mt-8 pt-8 border-t border-slate-200">
+                <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                  <span className="text-2xl">🎤</span>
+                  Phase 3: Investor Pitch Deck
+                </h2>
+
+                {/* Phase 3 Locked State */}
+                {phase3Status === 'locked' && (
+                  <div className="bg-slate-100 rounded-xl p-8 text-center">
+                    <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-700 mb-2">Phase 3 is Locked</h3>
+                    <p className="text-slate-500 max-w-md mx-auto">
+                      Complete and confirm Phase 2 to unlock Phase 3: Investor Pitch Deck
+                    </p>
+                  </div>
+                )}
+
+                {/* Phase 3 Invalidated State */}
+                {phase3Status === 'invalidated' && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-8 text-center">
+                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-orange-700 mb-2">Phase 3 Needs Update</h3>
+                    <p className="text-orange-600 max-w-md mx-auto mb-4">
+                      Phase 2 has been modified. Regenerate Phase 3 to reflect the latest changes.
+                    </p>
+                    <button
+                      onClick={handleGeneratePhase3}
+                      disabled={generatingPhase3}
+                      className="btn bg-orange-500 text-white hover:bg-orange-600"
+                    >
+                      {generatingPhase3 ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Regenerating...
+                        </>
+                      ) : (
+                        'Regenerate Phase 3'
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Phase 3 Pending - Generate Button */}
+                {phase3Status === 'pending' && !hasPhase3Data && (
+                  <div className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl p-8 text-center">
+                    <div className="text-5xl mb-4">🎯</div>
+                    <h3 className="text-2xl font-bold text-white mb-2">Ready to Create Your Pitch Deck?</h3>
+                    <p className="text-white/80 mb-6 max-w-md mx-auto">
+                      Generate a professional 10-slide investor pitch deck based on your validated idea and business model.
+                    </p>
+                    <button
+                      onClick={handleGeneratePhase3}
+                      disabled={generatingPhase3}
+                      className="btn bg-white text-purple-600 hover:bg-slate-100 px-8 py-3 text-base font-semibold disabled:opacity-60"
+                    >
+                      {generatingPhase3 ? (
+                        <>
+                          <span className="w-5 h-5 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
+                          Generating Pitch Deck...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          Generate Phase 3 Pitch Deck
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Phase 3 Generated Content */}
+                {hasPhase3Data && (
+                  <div className="space-y-6">
+                    {/* Pitch Deck Slides */}
+                    <div className="bg-white rounded-xl border border-slate-200 p-6">
+                      <div className="flex items-center gap-2 mb-6">
+                        <span className="text-2xl">📊</span>
+                        <h3 className="text-lg font-semibold text-slate-900">Pitch Deck (10 Slides)</h3>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {idea.phase3Data?.pitchDeck && Object.entries(idea.phase3Data.pitchDeck).map(([key, slide]) => {
+                          const slideColors: Record<string, string> = {
+                            titleSlide: 'bg-indigo-50 border-indigo-200',
+                            problemSlide: 'bg-red-50 border-red-200',
+                            solutionSlide: 'bg-green-50 border-green-200',
+                            marketOpportunitySlide: 'bg-blue-50 border-blue-200',
+                            businessModelSlide: 'bg-purple-50 border-purple-200',
+                            tractionSlide: 'bg-emerald-50 border-emerald-200',
+                            competitionSlide: 'bg-orange-50 border-orange-200',
+                            teamSlide: 'bg-cyan-50 border-cyan-200',
+                            financialsSlide: 'bg-amber-50 border-amber-200',
+                            askSlide: 'bg-pink-50 border-pink-200',
+                          };
+
+                          return (
+                            <div
+                              key={key}
+                              className={`rounded-lg p-4 border ${slideColors[key] || 'bg-slate-50 border-slate-200'}`}
+                            >
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="w-6 h-6 bg-slate-800 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                                  {slide.slideNumber}
+                                </span>
+                                <h4 className="font-semibold text-slate-900 text-sm">{slide.title}</h4>
+                              </div>
+                              <p className="text-slate-600 text-sm mb-2 line-clamp-3">{slide.content}</p>
+                              {slide.speakerNotes && (
+                                <details className="mt-2">
+                                  <summary className="text-xs text-slate-500 cursor-pointer hover:text-indigo-600">
+                                    View Speaker Notes
+                                  </summary>
+                                  <p className="text-xs text-slate-500 mt-1 bg-white/50 p-2 rounded">
+                                    {slide.speakerNotes}
+                                  </p>
+                                </details>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Changelog */}
+                    {idea.phase3Data?.changelog && idea.phase3Data.changelog.length > 0 && (
+                      <div className="bg-white rounded-xl border border-slate-200 p-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <span className="text-2xl">📝</span>
+                          <h3 className="text-lg font-semibold text-slate-900">What Changed</h3>
+                        </div>
+
+                        <div className="space-y-2">
+                          {idea.phase3Data.changelog.map((entry, idx) => (
+                            <div
+                              key={idx}
+                              className={`flex items-start gap-3 p-3 rounded-lg ${
+                                entry.changeType === 'added' ? 'bg-green-50' :
+                                entry.changeType === 'modified' ? 'bg-blue-50' :
+                                'bg-red-50'
+                              }`}
+                            >
+                              <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                entry.changeType === 'added' ? 'bg-green-200 text-green-700' :
+                                entry.changeType === 'modified' ? 'bg-blue-200 text-blue-700' :
+                                'bg-red-200 text-red-700'
+                              }`}>
+                                {entry.changeType.toUpperCase()}
+                              </span>
+                              <div>
+                                <p className="text-sm font-medium text-slate-700">{entry.section}</p>
+                                <p className="text-sm text-slate-600">{entry.description}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Phase 3 Action Buttons */}
+                    <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
+                      <div className="text-sm text-slate-500">
+                        {idea.phase3Data?.generatedAt && (
+                          <span>Generated: {new Date(idea.phase3Data.generatedAt).toLocaleDateString()}</span>
+                        )}
+                        {idea.phase3Data?.confirmedAt && (
+                          <span className="ml-4 text-green-600 font-medium">
+                            Confirmed: {new Date(idea.phase3Data.confirmedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex gap-3">
+                        {/* PDF Download Button - always visible when Phase 3 data exists */}
+                        <button
+                          onClick={handleDownloadPhase3PDF}
+                          disabled={downloadingPhase3}
+                          className="btn btn-secondary"
+                        >
+                          {downloadingPhase3 ? (
+                            <>
+                              <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                              Downloading...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              Download Pitch Deck
+                            </>
+                          )}
+                        </button>
+
+                        {phase3Status === 'generated' && (
+                          <>
+                            <button
+                              onClick={handleGeneratePhase3}
+                              disabled={generatingPhase3}
+                              className="btn btn-secondary"
+                            >
+                              {generatingPhase3 ? 'Regenerating...' : 'Regenerate'}
+                            </button>
+                            <button
+                              onClick={handleConfirmPhase3}
+                              disabled={confirmingPhase3}
+                              className="btn btn-primary"
+                            >
+                              {confirmingPhase3 ? (
+                                <>
+                                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                  Confirming...
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Confirm Phase 3
+                                </>
+                              )}
+                            </button>
+                          </>
+                        )}
+
+                        {phase3Status === 'confirmed' && (
+                          <div className="flex items-center gap-2 text-green-600 font-medium">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Validation Complete!
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Completion Banner */}
+                    {phase3Status === 'confirmed' && (
+                      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-6 text-center text-white">
+                        <div className="text-4xl mb-3">🎉</div>
+                        <h3 className="text-xl font-bold mb-2">Congratulations!</h3>
+                        <p className="text-white/90 max-w-md mx-auto">
+                          Your startup idea has been fully validated through all three phases.
+                          Download your pitch deck and start pitching to investors!
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -1,4 +1,5 @@
 import { Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { Idea } from '../models/Idea.js';
 import Version from '../models/Version.js';
 import { AuthenticatedRequest } from '../middleware/authMiddleware.js';
@@ -1505,6 +1506,326 @@ export const confirmPhase2 = async (
     });
   }
 };
+
+/**
+ * POST /api/v1/ideas/:id/generate/phase3
+ * Generate Phase 3 pitch deck content
+ * Story 9.1-9.2
+ *
+ * Generates:
+ * - 10-slide investor pitch deck
+ * - Changelog comparing to previous version
+ *
+ * Requirements:
+ * - Phase 2 must be confirmed
+ * - Phase 3 not already confirmed (locked)
+ */
+export const generatePhase3 = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const idea = await Idea.findOne({ _id: id, userId });
+
+    if (!idea) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Idea not found',
+        },
+      });
+      return;
+    }
+
+    // Check Phase 2 is confirmed
+    const phase2Status = idea.phaseStatus?.phase2;
+    if (phase2Status !== 'confirmed') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'PHASE_NOT_READY',
+          message: 'Phase 2 must be confirmed before generating Phase 3',
+        },
+      });
+      return;
+    }
+
+    // Check Phase 3 is not already confirmed
+    const phase3Status = idea.phaseStatus?.phase3;
+    if (phase3Status === 'confirmed') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'PHASE_LOCKED',
+          message: 'Phase 3 is already confirmed and locked',
+        },
+      });
+      return;
+    }
+
+    // Generate Phase 3 content
+    const phase3Data = generatePhase3Content(
+      idea.title,
+      idea.description,
+      idea.phase1Data,
+      idea.phase2Data
+    );
+
+    // Update idea
+    idea.phase = 'Phase 3';
+    idea.phaseStatus.phase3 = 'generated';
+    idea.phase3Data = phase3Data;
+    idea.version += 1;
+
+    await idea.save();
+
+    // Create version snapshot
+    await Version.createVersion(
+      idea._id as mongoose.Types.ObjectId,
+      {
+        title: idea.title,
+        description: idea.description,
+        phase: idea.phase,
+        phaseStatus: idea.phaseStatus,
+        phase1Data: idea.phase1Data,
+        phase2Data: idea.phase2Data,
+        phase3Data: idea.phase3Data,
+      },
+      'phase3_generated',
+      'Generated Phase 3 pitch deck content'
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: idea._id,
+        title: idea.title,
+        description: idea.description,
+        phase: idea.phase,
+        phaseStatus: idea.phaseStatus,
+        phase1Data: idea.phase1Data,
+        phase2Data: idea.phase2Data,
+        phase3Data: idea.phase3Data,
+        version: idea.version,
+        updatedAt: idea.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error('Error generating Phase 3:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to generate Phase 3',
+      },
+    });
+  }
+};
+
+/**
+ * POST /api/v1/ideas/:id/confirm/phase3
+ * Confirm and lock Phase 3 (complete idea validation)
+ * Story 9.5
+ *
+ * Requirements:
+ * - Phase 3 must be generated
+ * - Phase 3 not already confirmed
+ */
+export const confirmPhase3 = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const idea = await Idea.findOne({ _id: id, userId });
+
+    if (!idea) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Idea not found',
+        },
+      });
+      return;
+    }
+
+    // Check Phase 3 is generated
+    const phase3Status = idea.phaseStatus?.phase3;
+    if (phase3Status !== 'generated') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'PHASE_NOT_GENERATED',
+          message: phase3Status === 'confirmed'
+            ? 'Phase 3 is already confirmed'
+            : 'Phase 3 must be generated before confirming',
+        },
+      });
+      return;
+    }
+
+    // Confirm Phase 3
+    idea.phaseStatus.phase3 = 'confirmed';
+    if (idea.phase3Data) {
+      idea.phase3Data.confirmedAt = new Date();
+    }
+    idea.version += 1;
+
+    await idea.save();
+
+    // Create version snapshot
+    await Version.createVersion(
+      idea._id as mongoose.Types.ObjectId,
+      {
+        title: idea.title,
+        description: idea.description,
+        phase: idea.phase,
+        phaseStatus: idea.phaseStatus,
+        phase1Data: idea.phase1Data,
+        phase2Data: idea.phase2Data,
+        phase3Data: idea.phase3Data,
+      },
+      'phase3_confirmed',
+      'Confirmed Phase 3 - Pitch deck complete'
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: idea._id,
+        title: idea.title,
+        phase: idea.phase,
+        phaseStatus: idea.phaseStatus,
+        phase3Data: idea.phase3Data,
+        version: idea.version,
+        updatedAt: idea.updatedAt,
+        message: 'Phase 3 confirmed. Your startup validation is complete!',
+      },
+    });
+  } catch (error) {
+    console.error('Error confirming Phase 3:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to confirm Phase 3',
+      },
+    });
+  }
+};
+
+/**
+ * Helper function to generate Phase 3 pitch deck content
+ */
+function generatePhase3Content(title: string, description: string, phase1Data: any, phase2Data: any) {
+  const descLower = description.toLowerCase();
+  const isB2B = descLower.includes('b2b') || descLower.includes('business') || descLower.includes('enterprise');
+  const isSaaS = descLower.includes('saas') || descLower.includes('subscription') || descLower.includes('platform');
+  const hasAI = descLower.includes('ai') || descLower.includes('artificial intelligence') || descLower.includes('machine learning');
+
+  // Generate 10-slide pitch deck
+  const pitchDeck = {
+    titleSlide: {
+      slideNumber: 1,
+      title: title,
+      content: `${phase1Data?.cleanSummary || description}\n\nTransforming ${isB2B ? 'enterprise' : 'consumer'} experiences through ${hasAI ? 'AI-powered' : 'innovative'} solutions.`,
+      speakerNotes: `Introduce the company and capture attention with a compelling one-liner. Emphasize the transformative potential of the solution.`,
+    },
+    problemSlide: {
+      slideNumber: 2,
+      title: 'The Problem',
+      content: `Today's ${isB2B ? 'businesses' : 'consumers'} face critical challenges:\n\n• Inefficient processes wasting time and resources\n• Legacy solutions failing to meet modern expectations\n• Growing demand for ${hasAI ? 'intelligent automation' : 'seamless experiences'}\n• ${phase1Data?.killAssumption ? `Key assumption: ${phase1Data.killAssumption.substring(0, 150)}...` : 'Increasing complexity without adequate tools'}`,
+      speakerNotes: `Paint a vivid picture of the pain points. Use specific examples and data points. Make the audience feel the problem.`,
+    },
+    solutionSlide: {
+      slideNumber: 3,
+      title: 'Our Solution',
+      content: `${title} provides:\n\n• ${phase2Data?.businessModel?.valueProposition?.split('.')[0] || `A comprehensive ${hasAI ? 'AI-powered' : 'modern'} platform`}\n• ${hasAI ? 'Intelligent automation that learns and adapts' : 'Streamlined workflows that save time'}\n• ${isSaaS ? 'Cloud-native architecture for instant deployment' : 'Enterprise-grade reliability and security'}\n• ${isB2B ? 'Seamless integration with existing tools' : 'Intuitive user experience for everyone'}`,
+      speakerNotes: `Demonstrate how your solution directly addresses each problem. Use visuals or demos if possible. Keep it simple and memorable.`,
+    },
+    marketOpportunitySlide: {
+      slideNumber: 4,
+      title: 'Market Opportunity',
+      content: `${phase1Data?.marketFeasibility?.marketSize || '$500B+ addressable market'}\n\n• Growth: ${phase1Data?.marketFeasibility?.growthTrajectory || '15-20% annual growth'}\n• Timing: ${phase1Data?.marketFeasibility?.timing || 'Now'} - Market conditions are ideal\n• Key Trends:\n  - ${phase1Data?.marketFeasibility?.keyTrends?.[0] || 'Digital transformation acceleration'}\n  - ${phase1Data?.marketFeasibility?.keyTrends?.[1] || 'Remote work driving demand'}\n  - ${phase1Data?.marketFeasibility?.keyTrends?.[2] || 'AI adoption reaching mainstream'}`,
+      speakerNotes: `Validate the market size with credible sources. Explain why NOW is the right time. Show the trend lines moving in your favor.`,
+    },
+    businessModelSlide: {
+      slideNumber: 5,
+      title: 'Business Model',
+      content: `Revenue Streams:\n${phase2Data?.businessModel?.revenueStreams || 'SaaS subscriptions, Enterprise contracts, Professional services'}\n\nUnit Economics:\n• Customer Segments: ${phase2Data?.businessModel?.customerSegments?.substring(0, 100) || 'Enterprise and mid-market companies'}...\n• LTV/CAC Target: ${isB2B ? '5:1' : '3:1'}\n• Gross Margin: ${isSaaS ? '70-80%' : '50-60%'}`,
+      speakerNotes: `Show you understand how to make money. Present clear unit economics. Demonstrate path to profitability.`,
+    },
+    tractionSlide: {
+      slideNumber: 6,
+      title: 'Traction & Milestones',
+      content: `Key Milestones:\n\n${phase2Data?.strategy?.keyMilestones?.map((m: string, i: number) => `${i + 1}. ${m}`).join('\n') || '1. Product launch\n2. First paying customers\n3. $100K ARR\n4. Series A ready'}\n\nGrowth Strategy:\n${phase2Data?.strategy?.growthStrategy?.substring(0, 200) || 'Focused customer acquisition through inbound and outbound channels'}...`,
+      speakerNotes: `Show momentum and proof points. Highlight key wins and customer logos. Present a clear roadmap to next milestones.`,
+    },
+    competitionSlide: {
+      slideNumber: 7,
+      title: 'Competitive Landscape',
+      content: `Our Differentiation:\n\n${phase1Data?.competitiveAnalysis?.slice(0, 3).map((c: any) => `vs ${c.name}:\n• Their approach: ${c.difference}\n• Our advantage: ${c.advantage}`).join('\n\n') || '• vs Established Players: More agile and focused\n• vs Startups: Better technology and team\n• vs Status Quo: 10x improvement in efficiency'}`,
+      speakerNotes: `Don't bash competitors. Show you understand the landscape. Emphasize your unique positioning and sustainable advantages.`,
+    },
+    teamSlide: {
+      slideNumber: 8,
+      title: 'The Team',
+      content: `Founding Team:\n\n• CEO - Vision & Strategy\n  ${isB2B ? 'Enterprise sales background, domain expertise' : 'Consumer product experience, growth hacking'}\n\n• CTO - Technology & Product\n  ${hasAI ? 'AI/ML expertise, scaled systems at prior companies' : 'Full-stack engineering, shipped products at scale'}\n\n• [Key Hire] - ${isB2B ? 'Sales/Customer Success' : 'Growth/Marketing'}\n  Building pipeline and relationships\n\nAdvisors: Industry experts and successful founders`,
+      speakerNotes: `Highlight relevant experience and why THIS team can win. Show complementary skills. Mention notable advisors or investors.`,
+    },
+    financialsSlide: {
+      slideNumber: 9,
+      title: 'Financials & Projections',
+      content: `3-Year Projection:\n\n• Year 1: ${isB2B ? '$500K ARR' : '50K users'} - Product-market fit\n• Year 2: ${isB2B ? '$2M ARR' : '200K users'} - Scale go-to-market\n• Year 3: ${isB2B ? '$8M ARR' : '1M users'} - Market expansion\n\nKey Assumptions:\n• ${phase2Data?.strategy?.customerAcquisition?.substring(0, 100) || 'Efficient customer acquisition through multiple channels'}...\n• ${isSaaS ? 'Net revenue retention > 120%' : 'Strong organic growth and referrals'}`,
+      speakerNotes: `Be realistic but ambitious. Show you understand the drivers of growth. Prepare to defend assumptions.`,
+    },
+    askSlide: {
+      slideNumber: 10,
+      title: 'The Ask',
+      content: `Raising: $${isB2B ? '2-3M Seed' : '1-1.5M Pre-seed'}\n\nUse of Funds:\n• 50% - Product & Engineering\n• 30% - ${isB2B ? 'Sales & Customer Success' : 'Marketing & Growth'}\n• 20% - Operations & G&A\n\n18-Month Runway to:\n• ${phase2Data?.strategy?.keyMilestones?.[2] || 'Significant revenue milestone'}\n• Clear Series A metrics\n\nLet's build the future of ${hasAI ? 'AI-powered' : 'innovative'} ${isB2B ? 'enterprise' : 'consumer'} solutions together.`,
+      speakerNotes: `Be specific about the ask. Show clear use of funds. End with a compelling call to action.`,
+    },
+  };
+
+  // Generate changelog (what's new since last version)
+  const changelog = [
+    {
+      section: 'Pitch Deck',
+      changeType: 'added' as const,
+      description: 'Generated investor-ready 10-slide pitch deck',
+    },
+    {
+      section: 'Problem Statement',
+      changeType: 'added' as const,
+      description: 'Crystallized market problem based on Phase 1 analysis',
+    },
+    {
+      section: 'Financial Projections',
+      changeType: 'added' as const,
+      description: 'Created 3-year revenue projections based on business model',
+    },
+    {
+      section: 'Investment Ask',
+      changeType: 'added' as const,
+      description: 'Defined funding requirements and use of funds',
+    },
+  ];
+
+  return {
+    pitchDeck,
+    changelog,
+    generatedAt: new Date(),
+  };
+}
 
 /**
  * Helper function to generate Phase 2 content (MVP template-based)
