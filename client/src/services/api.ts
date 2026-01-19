@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -96,6 +96,15 @@ export const ideasApi = {
   },
   searchIdeas: async (q: string) => {
     const response = await apiClient.get('/api/v1/ideas/search', { params: { q } });
+    return response.data;
+  },
+  // Phase 1 API endpoints - Story 4.1-4.7
+  generatePhase1: async (id: string) => {
+    const response = await apiClient.post(`/api/v1/ideas/${id}/generate/phase1`);
+    return response.data;
+  },
+  confirmPhase1: async (id: string) => {
+    const response = await apiClient.post(`/api/v1/ideas/${id}/confirm/phase1`);
     return response.data;
   },
 };

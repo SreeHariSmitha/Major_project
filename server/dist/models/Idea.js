@@ -27,18 +27,41 @@ const IdeaSchema = new Schema({
         default: 'Phase 1',
     },
     phaseStatus: {
-        phase1Confirmed: {
-            type: Boolean,
-            default: false,
+        phase1: {
+            type: String,
+            enum: ['pending', 'generated', 'confirmed'],
+            default: 'pending',
         },
-        phase2Confirmed: {
-            type: Boolean,
-            default: false,
+        phase2: {
+            type: String,
+            enum: ['locked', 'pending', 'generated', 'confirmed'],
+            default: 'locked',
         },
-        phase3Confirmed: {
-            type: Boolean,
-            default: false,
+        phase3: {
+            type: String,
+            enum: ['locked', 'pending', 'generated', 'confirmed'],
+            default: 'locked',
         },
+    },
+    phase1Data: {
+        cleanSummary: { type: String },
+        marketFeasibility: {
+            marketSize: { type: String },
+            growthTrajectory: { type: String },
+            keyTrends: [{ type: String }],
+            timing: { type: String, enum: ['Now', 'Soon', 'Waiting'] },
+        },
+        competitiveAnalysis: [
+            {
+                name: { type: String },
+                difference: { type: String },
+                advantage: { type: String },
+            },
+        ],
+        killAssumption: { type: String },
+        killAssumptionTestGuidance: { type: String },
+        generatedAt: { type: Date },
+        confirmedAt: { type: Date },
     },
     version: {
         type: Number,
@@ -49,10 +72,6 @@ const IdeaSchema = new Schema({
         type: Boolean,
         default: false,
         index: true,
-    },
-    killAssumption: {
-        type: String,
-        maxlength: [1000, 'Kill assumption cannot exceed 1000 characters'],
     },
 }, {
     timestamps: true,

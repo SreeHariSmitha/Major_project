@@ -7,6 +7,8 @@ import {
   deleteIdea,
   archiveIdea,
   searchIdeas,
+  generatePhase1,
+  confirmPhase1,
 } from '../controllers/ideaController.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 
@@ -180,5 +182,71 @@ router.delete('/:id', deleteIdea);
  * 404 - Idea not found
  */
 router.patch('/:id/archive', archiveIdea);
+
+/**
+ * POST /api/v1/ideas/:id/generate/phase1
+ * Generate Phase 1 validation analysis
+ * Story 4.1-4.4
+ *
+ * Generates:
+ * - Clean Idea Summary
+ * - Market Feasibility
+ * - Competitive Analysis
+ * - Kill Assumption
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     id: string
+ *     title: string
+ *     description: string
+ *     phase: string
+ *     phaseStatus: { phase1: "generated", phase2: "locked", phase3: "locked" }
+ *     phase1Data: {
+ *       cleanSummary: string
+ *       marketFeasibility: { marketSize, growthTrajectory, keyTrends, timing }
+ *       competitiveAnalysis: [{ name, difference, advantage }]
+ *       killAssumption: string
+ *       killAssumptionTestGuidance: string
+ *       generatedAt: Date
+ *     }
+ *     version: number
+ *     updatedAt: Date
+ *   }
+ * }
+ *
+ * Error responses:
+ * 400 - Phase already confirmed (locked)
+ * 404 - Idea not found
+ */
+router.post('/:id/generate/phase1', generatePhase1);
+
+/**
+ * POST /api/v1/ideas/:id/confirm/phase1
+ * Confirm and lock Phase 1, enable Phase 2
+ * Story 4.6
+ *
+ * Success response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     id: string
+ *     title: string
+ *     phase: string
+ *     phaseStatus: { phase1: "confirmed", phase2: "pending", phase3: "locked" }
+ *     phase1Data: { ..., confirmedAt: Date }
+ *     version: number
+ *     updatedAt: Date
+ *     message: "Phase 1 confirmed. Phase 2 is now available."
+ *   }
+ * }
+ *
+ * Error responses:
+ * 400 - Phase not generated yet
+ * 400 - Phase already confirmed
+ * 404 - Idea not found
+ */
+router.post('/:id/confirm/phase1', confirmPhase1);
 
 export default router;

@@ -1,12 +1,44 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 /**
+ * Competitor Interface - For competitive analysis
+ */
+export interface ICompetitor {
+  name: string;
+  difference: string;
+  advantage: string;
+}
+
+/**
+ * Market Feasibility Interface - For Phase 1 market analysis
+ */
+export interface IMarketFeasibility {
+  marketSize: string;
+  growthTrajectory: string;
+  keyTrends: string[];
+  timing: 'Now' | 'Soon' | 'Waiting';
+}
+
+/**
+ * Phase 1 Data Interface - All Phase 1 validation outputs
+ */
+export interface IPhase1Data {
+  cleanSummary?: string;
+  marketFeasibility?: IMarketFeasibility;
+  competitiveAnalysis?: ICompetitor[];
+  killAssumption?: string;
+  killAssumptionTestGuidance?: string;
+  generatedAt?: Date;
+  confirmedAt?: Date;
+}
+
+/**
  * PhaseStatus Interface - Track which phases have been completed/confirmed
  */
 export interface IPhaseStatus {
-  phase1Confirmed: boolean;
-  phase2Confirmed: boolean;
-  phase3Confirmed: boolean;
+  phase1: 'pending' | 'generated' | 'confirmed';
+  phase2: 'locked' | 'pending' | 'generated' | 'confirmed';
+  phase3: 'locked' | 'pending' | 'generated' | 'confirmed';
 }
 
 /**
@@ -18,9 +50,9 @@ export interface IIdea extends Document {
   description: string;
   phase: 'Phase 1' | 'Phase 2' | 'Phase 3';
   phaseStatus: IPhaseStatus;
+  phase1Data?: IPhase1Data;
   version: number;
   archived: boolean;
-  killAssumption?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,18 +86,41 @@ const IdeaSchema = new Schema<IIdea>(
       default: 'Phase 1',
     },
     phaseStatus: {
-      phase1Confirmed: {
-        type: Boolean,
-        default: false,
+      phase1: {
+        type: String,
+        enum: ['pending', 'generated', 'confirmed'],
+        default: 'pending',
       },
-      phase2Confirmed: {
-        type: Boolean,
-        default: false,
+      phase2: {
+        type: String,
+        enum: ['locked', 'pending', 'generated', 'confirmed'],
+        default: 'locked',
       },
-      phase3Confirmed: {
-        type: Boolean,
-        default: false,
+      phase3: {
+        type: String,
+        enum: ['locked', 'pending', 'generated', 'confirmed'],
+        default: 'locked',
       },
+    },
+    phase1Data: {
+      cleanSummary: { type: String },
+      marketFeasibility: {
+        marketSize: { type: String },
+        growthTrajectory: { type: String },
+        keyTrends: [{ type: String }],
+        timing: { type: String, enum: ['Now', 'Soon', 'Waiting'] },
+      },
+      competitiveAnalysis: [
+        {
+          name: { type: String },
+          difference: { type: String },
+          advantage: { type: String },
+        },
+      ],
+      killAssumption: { type: String },
+      killAssumptionTestGuidance: { type: String },
+      generatedAt: { type: Date },
+      confirmedAt: { type: Date },
     },
     version: {
       type: Number,
@@ -76,10 +131,6 @@ const IdeaSchema = new Schema<IIdea>(
       type: Boolean,
       default: false,
       index: true,
-    },
-    killAssumption: {
-      type: String,
-      maxlength: [1000, 'Kill assumption cannot exceed 1000 characters'],
     },
   },
   {

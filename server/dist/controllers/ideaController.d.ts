@@ -35,4 +35,22 @@ export declare const archiveIdea: (req: AuthenticatedRequest, res: Response, nex
  * GET /api/v1/ideas/search
  */
 export declare const searchIdeas: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * Generate Phase 1 Analysis - Story 4.1-4.4
+ * POST /api/v1/ideas/:id/generate/phase1
+ *
+ * Generates:
+ * - Clean Idea Summary
+ * - Market Feasibility
+ * - Competitive Analysis
+ * - Kill Assumption
+ */
+export declare const generatePhase1: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
+/**
+ * Confirm Phase 1 - Story 4.6
+ * POST /api/v1/ideas/:id/confirm/phase1
+ *
+ * Locks Phase 1 and enables Phase 2
+ */
+export declare const confirmPhase1: (req: AuthenticatedRequest, res: Response, next: NextFunction) => Promise<void>;
 //# sourceMappingURL=ideaController.d.ts.map

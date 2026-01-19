@@ -67,9 +67,9 @@ export const createIdea = async (req, res, next) => {
             description: validatedData.description,
             phase: 'Phase 1',
             phaseStatus: {
-                phase1Confirmed: false,
-                phase2Confirmed: false,
-                phase3Confirmed: false,
+                phase1: 'pending',
+                phase2: 'locked',
+                phase3: 'locked',
             },
             version: 1,
             archived: false,
@@ -133,9 +133,10 @@ export const listIdeas = async (req, res, next) => {
                 description: idea.description,
                 phase: idea.phase,
                 phaseStatus: idea.phaseStatus,
+                phase1Data: idea.phase1Data,
                 version: idea.version,
                 archived: idea.archived,
-                killAssumption: idea.killAssumption,
+                killAssumption: idea.phase1Data?.killAssumption,
                 createdAt: idea.createdAt,
                 updatedAt: idea.updatedAt,
             })),
@@ -182,9 +183,10 @@ export const getIdea = async (req, res, next) => {
                 description: idea.description,
                 phase: idea.phase,
                 phaseStatus: idea.phaseStatus,
+                phase1Data: idea.phase1Data,
                 version: idea.version,
                 archived: idea.archived,
-                killAssumption: idea.killAssumption,
+                killAssumption: idea.phase1Data?.killAssumption,
                 createdAt: idea.createdAt,
                 updatedAt: idea.updatedAt,
             },
@@ -425,4 +427,216 @@ export const searchIdeas = async (req, res, next) => {
         });
     }
 };
+/**
+ * Generate Phase 1 Analysis - Story 4.1-4.4
+ * POST /api/v1/ideas/:id/generate/phase1
+ *
+ * Generates:
+ * - Clean Idea Summary
+ * - Market Feasibility
+ * - Competitive Analysis
+ * - Kill Assumption
+ */
+export const generatePhase1 = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const idea = await Idea.findOne({
+            _id: id,
+            userId: req.userId,
+        });
+        if (!idea) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    code: 'NOT_FOUND',
+                    message: 'Idea not found',
+                },
+            });
+            return;
+        }
+        // Check if Phase 1 is already confirmed (locked)
+        if (idea.phaseStatus.phase1 === 'confirmed') {
+            res.status(400).json({
+                success: false,
+                error: {
+                    code: 'PHASE_LOCKED',
+                    message: 'Phase 1 is already confirmed. Create a new version to regenerate.',
+                },
+            });
+            return;
+        }
+        // For MVP: Generate template-based analysis from description
+        // In future: Replace with AI generation (OpenAI/Claude)
+        const phase1Data = generatePhase1Content(idea.title, idea.description);
+        // Update idea with Phase 1 data
+        idea.phase1Data = phase1Data;
+        idea.phaseStatus.phase1 = 'generated';
+        await idea.save();
+        res.status(200).json({
+            success: true,
+            data: {
+                id: idea._id,
+                title: idea.title,
+                description: idea.description,
+                phase: idea.phase,
+                phaseStatus: idea.phaseStatus,
+                phase1Data: idea.phase1Data,
+                version: idea.version,
+                updatedAt: idea.updatedAt,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Generate Phase 1 error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_ERROR',
+                message: 'Failed to generate Phase 1 analysis',
+            },
+        });
+    }
+};
+/**
+ * Confirm Phase 1 - Story 4.6
+ * POST /api/v1/ideas/:id/confirm/phase1
+ *
+ * Locks Phase 1 and enables Phase 2
+ */
+export const confirmPhase1 = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const idea = await Idea.findOne({
+            _id: id,
+            userId: req.userId,
+        });
+        if (!idea) {
+            res.status(404).json({
+                success: false,
+                error: {
+                    code: 'NOT_FOUND',
+                    message: 'Idea not found',
+                },
+            });
+            return;
+        }
+        // Check if Phase 1 has been generated
+        if (idea.phaseStatus.phase1 === 'pending') {
+            res.status(400).json({
+                success: false,
+                error: {
+                    code: 'PHASE_NOT_GENERATED',
+                    message: 'Phase 1 must be generated before confirming.',
+                },
+            });
+            return;
+        }
+        // Check if Phase 1 is already confirmed
+        if (idea.phaseStatus.phase1 === 'confirmed') {
+            res.status(400).json({
+                success: false,
+                error: {
+                    code: 'PHASE_ALREADY_CONFIRMED',
+                    message: 'Phase 1 is already confirmed.',
+                },
+            });
+            return;
+        }
+        // Confirm Phase 1 and unlock Phase 2
+        idea.phaseStatus.phase1 = 'confirmed';
+        idea.phaseStatus.phase2 = 'pending';
+        if (idea.phase1Data) {
+            idea.phase1Data.confirmedAt = new Date();
+        }
+        await idea.save();
+        res.status(200).json({
+            success: true,
+            data: {
+                id: idea._id,
+                title: idea.title,
+                phase: idea.phase,
+                phaseStatus: idea.phaseStatus,
+                phase1Data: idea.phase1Data,
+                version: idea.version,
+                updatedAt: idea.updatedAt,
+                message: 'Phase 1 confirmed. Phase 2 is now available.',
+            },
+        });
+    }
+    catch (error) {
+        console.error('Confirm Phase 1 error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                code: 'INTERNAL_ERROR',
+                message: 'Failed to confirm Phase 1',
+            },
+        });
+    }
+};
+/**
+ * Helper function to generate Phase 1 content (MVP template-based)
+ * In future: Replace with AI generation
+ */
+function generatePhase1Content(title, description) {
+    // Extract keywords from description for template generation
+    const words = description.toLowerCase().split(/\s+/);
+    const hasApp = words.some(w => ['app', 'application', 'platform', 'software', 'saas'].includes(w));
+    const hasMarketplace = words.some(w => ['marketplace', 'market', 'store', 'shop'].includes(w));
+    const hasAI = words.some(w => ['ai', 'artificial', 'intelligence', 'ml', 'machine', 'learning'].includes(w));
+    const hasB2B = words.some(w => ['b2b', 'business', 'enterprise', 'corporate'].includes(w));
+    const hasB2C = words.some(w => ['b2c', 'consumer', 'user', 'customer', 'people'].includes(w));
+    // Generate clean summary
+    const cleanSummary = `${title} is a ${hasAI ? 'AI-powered ' : ''}${hasApp ? 'platform ' : 'solution '}that ${description.substring(0, 150)}${description.length > 150 ? '...' : ''}. It aims to serve ${hasB2B ? 'businesses' : hasB2C ? 'consumers' : 'users'} by providing innovative solutions in this space.`;
+    // Generate market feasibility
+    const marketFeasibility = {
+        marketSize: hasAI ? '$150B+ global AI market by 2026' :
+            hasMarketplace ? '$7T+ global e-commerce market' :
+                hasB2B ? '$500B+ B2B software market' :
+                    '$200B+ consumer technology market',
+        growthTrajectory: hasAI ? '25%+ CAGR through 2027' :
+            hasMarketplace ? '15% CAGR through 2026' :
+                '12-18% annual growth expected',
+        keyTrends: [
+            hasAI ? 'Rapid AI adoption across industries' : 'Digital transformation acceleration',
+            hasB2B ? 'Enterprise automation demand growing' : 'Consumer digital behavior shift',
+            'Increased focus on user experience',
+            hasMarketplace ? 'Rise of vertical marketplaces' : 'Platform consolidation trend',
+        ],
+        timing: 'Now',
+    };
+    // Generate competitive analysis
+    const competitiveAnalysis = [
+        {
+            name: hasAI ? 'OpenAI/ChatGPT' : hasMarketplace ? 'Amazon/eBay' : 'Established Market Leaders',
+            difference: 'Broad, generic approach serving mass market',
+            advantage: `${title} offers a more focused, specialized solution for the target audience`,
+        },
+        {
+            name: hasB2B ? 'Salesforce/HubSpot' : 'Traditional Competitors',
+            difference: 'Legacy systems with complex onboarding',
+            advantage: 'Modern, intuitive user experience with faster time-to-value',
+        },
+        {
+            name: 'Emerging Startups',
+            difference: 'Limited features or narrow focus',
+            advantage: 'Comprehensive solution with unique value proposition',
+        },
+    ];
+    // Generate kill assumption with test guidance
+    const killAssumption = hasB2B
+        ? `Assumes target businesses will pay $${Math.floor(Math.random() * 500 + 100)}/month for this solution and that decision-makers can be reached through targeted outreach.`
+        : `Assumes users will actively adopt ${title} over existing alternatives and that the value proposition is compelling enough to drive organic growth.`;
+    const killAssumptionTestGuidance = hasB2B
+        ? 'Validate by: (1) Conducting 10+ discovery calls with target decision-makers, (2) Testing willingness to pay with a landing page and pricing table, (3) Measuring sign-up conversion rates.'
+        : 'Validate by: (1) Running a landing page test with 500+ visitors, (2) Conducting 20+ user interviews to confirm pain points, (3) Building a waitlist to gauge demand.';
+    return {
+        cleanSummary,
+        marketFeasibility,
+        competitiveAnalysis,
+        killAssumption,
+        killAssumptionTestGuidance,
+        generatedAt: new Date(),
+    };
+}
 //# sourceMappingURL=ideaController.js.map
