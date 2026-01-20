@@ -194,6 +194,7 @@ export const getIdea = async (req, res, next) => {
                 phaseStatus: idea.phaseStatus,
                 phase1Data: idea.phase1Data,
                 phase2Data: idea.phase2Data,
+                phase3Data: idea.phase3Data,
                 version: idea.version,
                 archived: idea.archived,
                 killAssumption: idea.phase1Data?.killAssumption,
