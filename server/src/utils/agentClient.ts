@@ -31,9 +31,16 @@ export async function callAgent<TResponse>(
   phase: Phase,
   payload: Record<string, unknown>,
 ): Promise<TResponse> {
+  return callAgentPath<TResponse>(`/agents/${phase}`, payload);
+}
+
+export async function callAgentPath<TResponse>(
+  path: string,
+  payload: Record<string, unknown>,
+): Promise<TResponse> {
   try {
     const { data } = await axios.post<TResponse>(
-      `${AGENT_URL}/agents/${phase}`,
+      `${AGENT_URL}${path}`,
       payload,
       {
         timeout: DEFAULT_TIMEOUT_MS,
@@ -45,18 +52,18 @@ export async function callAgent<TResponse>(
     const ax = err as AxiosError;
     if (ax.response) {
       throw new AgentServiceError(
-        `Agent service returned ${ax.response.status} for ${phase}`,
+        `Agent service returned ${ax.response.status} for ${path}`,
         ax.response.status,
         ax.response.data,
       );
     }
     if (ax.code === 'ECONNABORTED') {
       throw new AgentServiceError(
-        `Agent service timed out after ${DEFAULT_TIMEOUT_MS}ms for ${phase}`,
+        `Agent service timed out after ${DEFAULT_TIMEOUT_MS}ms for ${path}`,
       );
     }
     throw new AgentServiceError(
-      `Agent service unreachable for ${phase}: ${ax.message}`,
+      `Agent service unreachable for ${path}: ${ax.message}`,
     );
   }
 }

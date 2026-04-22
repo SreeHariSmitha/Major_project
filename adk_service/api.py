@@ -46,15 +46,28 @@ from pydantic import BaseModel, Field
 # Load .env before importing agent module (ADK reads env at import time)
 load_dotenv()
 
+# Weave tracing — must init BEFORE agent imports so LiteLlm auto-patch is in
+# place when agents construct their model clients. Config lives in
+# utils/weave_tracing.py to keep this file focused on HTTP wiring.
+from utils.weave_tracing import init_weave, trace as _trace  # noqa: E402
+
+init_weave(logger)
+
 from startup_validator.agent import (  # noqa: E402  — load_dotenv must run first
+    large_model,
     phase1_pipeline,
     phase2_pipeline,
     phase3_pipeline,
+    small_model,
 )
+from startup_validator.regen_agents import SECTION_REGISTRY  # noqa: E402
 from utils.context_compactor import (
     compact_phase1_context,
     compact_phase2_context,
 )
+from google.adk.agents import LlmAgent  # noqa: E402
+from pydantic import BaseModel as _PydanticBaseModel  # noqa: E402
+from typing import Literal as _Literal  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +145,7 @@ def _normalize_output(raw: Any) -> Any:
     return raw
 
 
+@_trace
 async def _run_pipeline_state(
     pipeline,
     initial_state: dict[str, Any],
@@ -240,6 +254,7 @@ async def health() -> dict[str, str]:
 
 
 @app.post("/agents/phase1")
+@_trace
 async def generate_phase1(req: Phase1Request) -> dict[str, Any]:
     """Run the 4-agent Phase 1 pipeline and return IPhase1Data-shaped JSON."""
     idea_text = f"Title: {req.ideaTitle}\n\nDescription: {req.ideaDescription}"
@@ -253,26 +268,56 @@ async def generate_phase1(req: Phase1Request) -> dict[str, Any]:
 
 
 @app.post("/agents/phase2")
+@_trace
 async def generate_phase2(req: Phase2Request) -> dict[str, Any]:
-    """Run the Phase 2 pipeline and return IPhase2Data-shaped JSON."""
+    """Run the Phase 2 pipeline and return IPhase2Data-shaped JSON.
+
+    The final object is assembled here in Python from the 3 sub-agent outputs
+    rather than by a synthesizer LLM. The old synthesizer was a pure field-
+    copy step — removing it saves ~5K tokens and avoids Groq's per-minute
+    rate ceiling on large combined prompts.
+    """
     user_message = (
         f"Generate the Phase 2 business model for:\n\n"
         f"Title: {req.ideaTitle}\nDescription: {req.ideaDescription}"
     )
-    output = await _run_pipeline(
+    state = await _run_pipeline_state(
         pipeline=phase2_pipeline,
         initial_state={
             "idea_title": req.ideaTitle,
             "idea_description": req.ideaDescription,
             "phase1_context": _format_phase1_context(req.phase1Data),
         },
-        output_key="phase2_output",
         user_message=user_message,
     )
-    return output
+
+    required = ("business_model", "strategy", "risk_analysis")
+    missing = [k for k in required if k not in state]
+    if missing:
+        logger.error(
+            "Phase 2 pipeline finished but state missing: %s. Present: %s",
+            missing,
+            list(state.keys()),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Phase 2 pipeline missing state keys: {missing}",
+        )
+
+    business_model = _normalize_output(state["business_model"]) or {}
+    strategy = _normalize_output(state["strategy"]) or {}
+    risk_analysis = _normalize_output(state["risk_analysis"]) or {}
+
+    return {
+        "businessModel": business_model,
+        "strategy": strategy,
+        "structuralRisks": risk_analysis.get("structuralRisks", []),
+        "operationalRisks": risk_analysis.get("operationalRisks", []),
+    }
 
 
 @app.post("/agents/phase3")
+@_trace
 async def generate_phase3(req: Phase3Request) -> dict[str, Any]:
     """Run the Phase 3 pipeline and return IPhase3Data-shaped JSON.
 
@@ -350,6 +395,193 @@ async def generate_phase3(req: Phase3Request) -> dict[str, Any]:
     return {
         "pitchDeck": pitch_deck,
         "changelog": changelog_wrapper.get("changelog", []),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Section regeneration — runs ONE sub-agent, not the whole phase pipeline.
+# Saves ~4x tokens vs POST /agents/phaseN when the user only wants to tweak
+# a single section from the chat/section-editor UI.
+# ---------------------------------------------------------------------------
+
+
+class RegenerateSectionRequest(_PydanticBaseModel):
+    section: str
+    feedback: str
+    ideaTitle: str
+    ideaDescription: str
+    existingSection: dict[str, Any] | list[Any] | str
+    phase1Data: dict[str, Any] | None = None
+    phase2Data: dict[str, Any] | None = None
+
+
+@app.post("/agents/regenerate-section")
+@_trace
+async def regenerate_section(req: RegenerateSectionRequest) -> dict[str, Any]:
+    spec = SECTION_REGISTRY.get(req.section)
+    if spec is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown section '{req.section}'. Valid: {sorted(SECTION_REGISTRY.keys())}",
+        )
+
+    existing_text = json.dumps(req.existingSection, separators=(",", ":"), default=str)
+    feedback_text = req.feedback.strip() or "(no feedback provided — regenerate with fresh perspective)"
+
+    phase1_ctx = (
+        json.dumps(req.phase1Data, separators=(",", ":"), default=str)
+        if req.phase1Data
+        else "{}"
+    )
+    phase2_ctx = (
+        json.dumps(req.phase2Data, separators=(",", ":"), default=str)
+        if req.phase2Data
+        else "{}"
+    )
+
+    initial_state = {
+        "idea_title": req.ideaTitle,
+        "idea_description": req.ideaDescription,
+        "phase1_context": phase1_ctx,
+        "phase2_context": phase2_ctx,
+        "existing_section": existing_text,
+        "user_feedback": feedback_text,
+    }
+
+    user_message = (
+        f"Regenerate the '{spec.label}' section based on the feedback: {feedback_text}"
+    )
+
+    raw = await _run_pipeline(
+        pipeline=spec.agent,
+        initial_state=initial_state,
+        output_key=spec.output_key,
+        user_message=user_message,
+    )
+    raw = raw if isinstance(raw, dict) else {}
+    patch = spec.apply(raw)
+    return {
+        "section": req.section,
+        "phase": spec.phase,
+        "patch": patch,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Chat — classifies user message as question vs regenerate-request and
+# either answers or returns a proposal (section + distilled feedback) that
+# the server can pass to /agents/regenerate-section on user confirm.
+#
+# Intent classification runs on small_model to keep chat cheap. No change
+# is applied here — the server handles apply/version after user approves.
+# ---------------------------------------------------------------------------
+
+
+class _ChatIntent(_PydanticBaseModel):
+    intent: _Literal["answer", "regenerate"]
+    answer: str = ""
+    section: str = ""
+    feedback: str = ""
+
+
+_CHAT_PROMPT = """You are the assistant for a startup idea validation app. The user is reviewing the generated plan (3 phases) and may ask questions about it OR ask to change a specific section.
+
+=== Idea ===
+Title: {idea_title}
+Description: {idea_description}
+
+=== Current plan snapshot ===
+Phase 1: {phase1_context}
+Phase 2: {phase2_context}
+Phase 3: {phase3_context}
+
+=== Recent chat (most recent last) ===
+{chat_history}
+
+=== User message ===
+{user_message}
+
+Classify the user's intent into exactly one of:
+
+1. "answer" — the user is asking a question, requesting analysis, or making a comment that does not require regenerating any section. Provide a helpful, concise answer (<=200 words) in the `answer` field.
+
+2. "regenerate" — the user wants to change/update/redo a specific section of the plan. Set `section` to the EXACT matching key from this list:
+   - cleanSummary, marketFeasibility, competitiveAnalysis, killAssumption  (phase 1)
+   - businessModel, strategy, risks  (phase 2)
+   - storySlides, marketModelSlides, executionSlides  (phase 3 slide bundles)
+   Set `feedback` to a crisp, standalone instruction (<=200 chars) capturing exactly what to change. Include the user's key constraints (region, audience, metric, etc). Leave `answer` empty.
+
+Rules:
+- Pick the single closest section. If the user mentions "market feasibility for India", section="marketFeasibility", feedback="Focus on the Indian market instead of global".
+- "redo the pitch deck team slide" → section="executionSlides", feedback="Rewrite the team slide with...".
+- Never guess a section that isn't in the allowed list.
+- If request is vague ("make it better"), set intent="answer" and ask a clarifying question in `answer`.
+"""
+
+
+_chat_intent_agent = LlmAgent(
+    name="ChatIntentAgent",
+    model=small_model,
+    description="Classifies chat messages as Q&A or section-regeneration proposals.",
+    instruction=_CHAT_PROMPT,
+    output_schema=_ChatIntent,
+    output_key="chat_intent",
+)
+
+
+class ChatRequest(_PydanticBaseModel):
+    ideaTitle: str
+    ideaDescription: str
+    message: str
+    phase1Data: dict[str, Any] | None = None
+    phase2Data: dict[str, Any] | None = None
+    phase3Data: dict[str, Any] | None = None
+    history: list[dict[str, str]] = []  # [{role, content}, ...]
+
+
+@app.post("/agents/chat")
+@_trace
+async def chat(req: ChatRequest) -> dict[str, Any]:
+    def _ctx(d: dict[str, Any] | None) -> str:
+        return json.dumps(d, separators=(",", ":"), default=str) if d else "(not generated yet)"
+
+    history_text = (
+        "\n".join(f"{m.get('role', 'user')}: {m.get('content', '')}" for m in req.history[-6:])
+        or "(no prior messages)"
+    )
+
+    initial_state = {
+        "idea_title": req.ideaTitle,
+        "idea_description": req.ideaDescription,
+        "phase1_context": _ctx(req.phase1Data),
+        "phase2_context": _ctx(req.phase2Data),
+        "phase3_context": _ctx(req.phase3Data),
+        "chat_history": history_text,
+        "user_message": req.message,
+    }
+
+    raw = await _run_pipeline(
+        pipeline=_chat_intent_agent,
+        initial_state=initial_state,
+        output_key="chat_intent",
+        user_message=req.message,
+    )
+    raw = raw if isinstance(raw, dict) else {}
+
+    intent = raw.get("intent", "answer")
+    if intent == "regenerate" and raw.get("section") in SECTION_REGISTRY:
+        return {
+            "type": "proposal",
+            "section": raw["section"],
+            "feedback": raw.get("feedback", "").strip(),
+            "text": f"I can update **{SECTION_REGISTRY[raw['section']].label}** with: \"{raw.get('feedback', '').strip()}\". Apply this change?",
+        }
+
+    # Fallback to Q&A answer (covers both explicit answer intent and
+    # regenerate intent with an unknown section).
+    return {
+        "type": "answer",
+        "text": raw.get("answer", "I'm not sure how to help with that. Could you clarify?"),
     }
 
 

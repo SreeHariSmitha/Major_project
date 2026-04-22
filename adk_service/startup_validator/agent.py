@@ -22,10 +22,20 @@ the `ADK_MODEL` env var to swap providers without touching this file.
 
 from __future__ import annotations
 
+import json
 import os
 
 from google.adk.agents import LlmAgent, SequentialAgent
+from google.adk.agents.callback_context import CallbackContext
 from google.adk.models.lite_llm import LiteLlm
+
+from utils.context_compactor import (
+    compact_business_model,
+    compact_competitor_analysis,
+    compact_market_analysis,
+    compact_strategy,
+)
+from utils.weave_tracing import tag_sub_agent
 
 from .prompts import (
     COMPETITOR_ANALYSIS_PROMPT,
@@ -35,7 +45,6 @@ from .prompts import (
     PHASE2_BUSINESS_MODEL_PROMPT,
     PHASE2_RISK_ANALYSIS_PROMPT,
     PHASE2_STRATEGY_PROMPT,
-    PHASE2_SYNTHESIZER_PROMPT,
     PHASE3_CHANGELOG_PROMPT,
     PHASE3_EXECUTION_SLIDES_PROMPT,
     PHASE3_MARKET_AND_MODEL_PROMPT,
@@ -50,7 +59,6 @@ from .schemas import (
     MarketAndModelSlides,
     MarketFeasibilityOutput,
     Phase1Output,
-    Phase2Output,
     RiskAnalysisOutput,
     StorySlides,
     Strategy,
@@ -74,6 +82,42 @@ small_model = LiteLlm(model=_SMALL_MODEL_NAME,temperature=_TEMPERATURE )  # or c
 
 
 # ---------------------------------------------------------------------------
+# Intra-phase compaction — each sub-agent's raw output can be large (schemas
+# include trend dicts, score maps, full cost/partner breakdowns). Downstream
+# sub-agents rarely need all of it. We run a compactor in an after-agent
+# callback and stash the trimmed version under `<key>_compact`, which the
+# downstream prompts reference via `{..._compact}`. Synthesizers keep using
+# the full key so they can emit complete, schema-conformant output.
+# ---------------------------------------------------------------------------
+
+
+def _as_dict(value):
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if hasattr(value, "model_dump"):
+        return value.model_dump()
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+
+def _make_compact_callback(src_key: str, dst_key: str, compactor):
+    def _callback(callback_context: CallbackContext):
+        data = _as_dict(callback_context.state.get(src_key))
+        callback_context.state[dst_key] = json.dumps(
+            compactor(data), separators=(",", ":"), default=str
+        )
+        return None
+
+    return _callback
+
+
+# ---------------------------------------------------------------------------
 # Phase 1 pipeline — 4 agents in sequence
 #
 # State keys produced (passed between agents via {placeholder} substitution):
@@ -92,6 +136,7 @@ idea_understanding_agent = LlmAgent(
     instruction=IDEA_UNDERSTANDING_PROMPT,
     output_schema=IdeaUnderstandingOutput,
     output_key="idea_structured",
+    before_model_callback=tag_sub_agent("IdeaUnderstandingAgent"),
 )
 
 market_feasibility_agent = LlmAgent(
@@ -101,6 +146,10 @@ market_feasibility_agent = LlmAgent(
     instruction=MARKET_FEASIBILITY_PROMPT,
     output_schema=MarketFeasibilityOutput,
     output_key="market_analysis",
+    before_model_callback=tag_sub_agent("MarketFeasibilityAgent"),
+    after_agent_callback=_make_compact_callback(
+        "market_analysis", "market_analysis_compact", compact_market_analysis
+    ),
 )
 
 competitor_analysis_agent = LlmAgent(
@@ -110,6 +159,12 @@ competitor_analysis_agent = LlmAgent(
     instruction=COMPETITOR_ANALYSIS_PROMPT,
     output_schema=CompetitorAnalysisOutput,
     output_key="competitor_analysis",
+    before_model_callback=tag_sub_agent("CompetitorAnalysisAgent"),
+    after_agent_callback=_make_compact_callback(
+        "competitor_analysis",
+        "competitor_analysis_compact",
+        compact_competitor_analysis,
+    ),
 )
 
 phase1_synthesizer_agent = LlmAgent(
@@ -119,6 +174,7 @@ phase1_synthesizer_agent = LlmAgent(
     instruction=PHASE1_SYNTHESIZER_PROMPT,
     output_schema=Phase1Output,
     output_key="phase1_output",
+    before_model_callback=tag_sub_agent("Phase1SynthesizerAgent"),
 )
 
 phase1_pipeline = SequentialAgent(
@@ -153,6 +209,10 @@ business_model_agent = LlmAgent(
     instruction=PHASE2_BUSINESS_MODEL_PROMPT,
     output_schema=BusinessModel,
     output_key="business_model",
+    before_model_callback=tag_sub_agent("BusinessModelAgent"),
+    after_agent_callback=_make_compact_callback(
+        "business_model", "business_model_compact", compact_business_model
+    ),
 )
 
 strategy_agent = LlmAgent(
@@ -162,6 +222,10 @@ strategy_agent = LlmAgent(
     instruction=PHASE2_STRATEGY_PROMPT,
     output_schema=Strategy,
     output_key="strategy",
+    before_model_callback=tag_sub_agent("StrategyAgent"),
+    after_agent_callback=_make_compact_callback(
+        "strategy", "strategy_compact", compact_strategy
+    ),
 )
 
 risk_analysis_agent = LlmAgent(
@@ -171,25 +235,20 @@ risk_analysis_agent = LlmAgent(
     instruction=PHASE2_RISK_ANALYSIS_PROMPT,
     output_schema=RiskAnalysisOutput,
     output_key="risk_analysis",
+    before_model_callback=tag_sub_agent("RiskAnalysisAgent"),
 )
 
-phase2_synthesizer_agent = LlmAgent(
-    name="Phase2SynthesizerAgent",
-    model=large_model,
-    description="Packs business model, strategy, and risks into the Phase 2 output.",
-    instruction=PHASE2_SYNTHESIZER_PROMPT,
-    output_schema=Phase2Output,
-    output_key="phase2_output",
-)
-
+# Phase 2 synthesizer removed — it was a pure field-copy step (see prompt:
+# "use the business model below exactly", "use the strategy below exactly").
+# The final Phase2Output is assembled in api.py from the 3 upstream outputs.
+# Saves ~5K tokens per request and removes the TPM choke point.
 phase2_pipeline = SequentialAgent(
     name="Phase2Pipeline",
-    description="Full Phase 2: business model → strategy → risks → synthesis.",
+    description="Full Phase 2: business model → strategy → risks. Final object assembled in api.py.",
     sub_agents=[
         business_model_agent,
         strategy_agent,
         risk_analysis_agent,
-        phase2_synthesizer_agent,
     ],
 )
 
@@ -224,6 +283,7 @@ story_slides_agent = LlmAgent(
     instruction=PHASE3_STORY_SLIDES_PROMPT,
     output_schema=StorySlides,
     output_key="story_slides",
+    before_model_callback=tag_sub_agent("StorySlidesAgent"),
 )
 
 market_and_model_slides_agent = LlmAgent(
@@ -233,6 +293,7 @@ market_and_model_slides_agent = LlmAgent(
     instruction=PHASE3_MARKET_AND_MODEL_PROMPT,
     output_schema=MarketAndModelSlides,
     output_key="market_and_model_slides",
+    before_model_callback=tag_sub_agent("MarketAndModelSlidesAgent"),
 )
 
 execution_slides_agent = LlmAgent(
@@ -242,6 +303,7 @@ execution_slides_agent = LlmAgent(
     instruction=PHASE3_EXECUTION_SLIDES_PROMPT,
     output_schema=ExecutionSlides,
     output_key="execution_slides",
+    before_model_callback=tag_sub_agent("ExecutionSlidesAgent"),
 )
 
 phase3_changelog_agent = LlmAgent(
@@ -251,6 +313,7 @@ phase3_changelog_agent = LlmAgent(
     instruction=PHASE3_CHANGELOG_PROMPT,
     output_schema=ChangelogOutput,
     output_key="phase3_changelog",
+    before_model_callback=tag_sub_agent("Phase3ChangelogAgent"),
 )
 
 phase3_pipeline = SequentialAgent(

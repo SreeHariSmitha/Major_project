@@ -16,9 +16,14 @@ import {
   getVersionHistory,
   getVersion,
   compareVersions,
-  refineSection,
 } from '../controllers/ideaController.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
+import {
+  getChatHistory,
+  sendChatMessage,
+  applyChatProposal,
+  regenerateSection,
+} from '../controllers/chatController.js';
 
 /**
  * Idea Routes
@@ -420,7 +425,13 @@ router.post('/:id/confirm/phase3', confirmPhase3);
  * 400 - Phase 1 already confirmed (locked)
  * 404 - Idea not found
  */
-router.post('/:id/sections/:sectionName', refineSection);
+// Legacy route kept for backwards compat; now covers ALL phases via sub-agent.
+router.post('/:id/sections/:sectionName', regenerateSection);
+
+// Chat — Q&A + proposed section changes + confirm-to-apply
+router.get('/:id/chat', getChatHistory);
+router.post('/:id/chat', sendChatMessage);
+router.post('/:id/chat/apply', applyChatProposal);
 
 /**
  * GET /api/v1/ideas/:id/versions

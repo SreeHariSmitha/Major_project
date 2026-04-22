@@ -84,8 +84,8 @@ Responsibilities in Depth:
 Structured idea:
 {idea_structured}
 
-Market analysis:
-{market_analysis}
+Market analysis (compact):
+{market_analysis_compact}
 
 Return the output strictly in JSON format.
 Do not include any explanation or extra text.
@@ -120,11 +120,11 @@ Be concise but precise. Avoid generic advice — use the specifics from the prio
 Structured idea:
 {idea_structured}
 
-Market analysis:
-{market_analysis}
+Market analysis (compact):
+{market_analysis_compact}
 
-Competitor analysis:
-{competitor_analysis}
+Competitor analysis (compact):
+{competitor_analysis_compact}
 
 Return the output strictly in JSON format.
 Do not include any explanation or extra text.
@@ -170,7 +170,7 @@ Produce four fields, grounded in the business model and the Phase 1 market data:
 - customerAcquisition: Channels, target CAC, and specific tactics (not generic "content marketing").
 - pricingStrategy: Tiers, annual discounts, and positioning rationale.
 - growthStrategy: Phased plan (Phase 1 → Phase 2 → Phase 3 of growth) with concrete actions per phase.
-- keyMilestones: 3-4 dated milestones, e.g. "Month 6: $100K ARR".
+- keyMilestones: A JSON ARRAY of 3-4 dated milestone strings (must be a list, NOT a single comma-separated string). Example: ["Month 3: 1000 users", "Month 6: $100K ARR", "Month 12: $500K ARR"].
 
 Idea title: {idea_title}
 Idea description: {idea_description}
@@ -178,8 +178,8 @@ Idea description: {idea_description}
 Phase 1 context:
 {phase1_context}
 
-Confirmed business model:
-{business_model}
+Confirmed business model (compact):
+{business_model_compact}
 """
 
 
@@ -202,11 +202,11 @@ Idea description: {idea_description}
 Phase 1 context:
 {phase1_context}
 
-Confirmed business model:
-{business_model}
+Confirmed business model (compact):
+{business_model_compact}
 
-Confirmed strategy:
-{strategy}
+Confirmed strategy (compact):
+{strategy_compact}
 """
 
 

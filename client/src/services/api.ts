@@ -149,6 +149,22 @@ export const ideasApi = {
     });
     return response.data;
   },
+  // Chat API — Q&A + section-regen proposals
+  getChatHistory: async (id: string) => {
+    const response = await apiClient.get(`/api/v1/ideas/${id}/chat`);
+    return response.data;
+  },
+  sendChatMessage: async (id: string, message: string) => {
+    const response = await apiClient.post(`/api/v1/ideas/${id}/chat`, { message });
+    return response.data;
+  },
+  applyChatProposal: async (id: string, messageIndex: number, feedbackOverride?: string) => {
+    const response = await apiClient.post(`/api/v1/ideas/${id}/chat/apply`, {
+      messageIndex,
+      feedbackOverride,
+    });
+    return response.data;
+  },
 };
 
 export default apiClient;
