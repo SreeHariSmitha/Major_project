@@ -26,6 +26,9 @@ Responsibilities in Depth:
 5. Identify the business or industry domain.
 6. Detect hidden assumptions the user is making (e.g., "people will pay," "technology exists," "users will switch").
 7. Rewrite the idea in a neutral, analytical format.
+
+Return the output strictly in JSON format.
+Do not include any explanation or extra text.
 """
 
 
@@ -48,6 +51,11 @@ Responsibilities in Depth:
 
 Structured idea to analyse:
 {idea_structured}
+
+
+Return the output strictly in JSON format.
+Do not include any explanation or extra text.
+
 """
 
 
@@ -78,6 +86,9 @@ Structured idea:
 
 Market analysis:
 {market_analysis}
+
+Return the output strictly in JSON format.
+Do not include any explanation or extra text.
 """
 
 
@@ -98,7 +109,7 @@ You must produce:
 2. marketFeasibility — A concise object with:
    - marketSize: one sentence with specific USD figures (use data from the market analysis).
    - growthTrajectory: one sentence with CAGR or growth rate.
-   - keyTrends: MUST be a JSON array of 3-4 separate short strings, NOT a single joined string.
+   - keyTrends: 3-4 short trend statements, each distinct.
    - timing: exactly one of "Now", "Soon", or "Waiting" based on market readiness.
 3. competitiveAnalysis — 2-5 competitor objects. For each: name, difference (what they do differently), advantage (our advantage over them). Rewrite the raw competitor list so each entry clearly contrasts with the user's idea.
 4. killAssumption — ONE sentence stating the single most critical assumption that would invalidate the entire idea if wrong. Be specific and testable.
@@ -114,43 +125,34 @@ Market analysis:
 
 Competitor analysis:
 {competitor_analysis}
+
+Return the output strictly in JSON format.
+Do not include any explanation or extra text.
 """
 
 
 # ---------------------------------------------------------------------------
-# Phase 2 — Business Model. Produces the exact Express Phase2Output shape in
-# one shot (replaces old Agent 5 + implicit risk-generation logic).
+# Phase 2 pipeline — 4 sub-agent prompts
+#
+# State flow:
+#   {idea_title, idea_description, phase1_context}  (seeded by api.py)
+#     → business_model        ← BusinessModelAgent
+#     → strategy              ← StrategyAgent (reads business_model)
+#     → risk_analysis         ← RiskAnalysisAgent (reads business_model + strategy)
+#     → phase2_output         ← Phase2SynthesizerAgent (packs all three)
 # ---------------------------------------------------------------------------
 
-PHASE2_BUSINESS_MODEL_PROMPT = """You are the Business Model & Strategy Agent.
-Your Role: Act as the "business architect." Design how this idea will make money, reach customers, and survive reality.
+PHASE2_BUSINESS_MODEL_PROMPT = """You are the Business Model Canvas Agent.
+Your Role: Design the business model canvas for this idea — who pays, what they get, how money flows, what it costs, who helps, and what is required.
 
-You are given the confirmed Phase 1 validation output (clean summary, market feasibility, competition, kill assumption) plus the original idea title and description.
+Produce six fields, tailored to the specifics of the idea (no generic advice):
 
-You must produce four sections:
-
-1. businessModel — a business model canvas with:
-   - customerSegments: Who exactly pays / uses. Name 2-3 specific segments.
-   - valueProposition: The unique value delivered. Include 2-3 concrete differentiators.
-   - revenueStreams: How money flows in. Include specific pricing tiers where applicable.
-   - costStructure: Major cost buckets with rough percentages.
-   - keyPartnerships: Specific partner categories with examples.
-   - keyResources: 3-4 critical resources (people, tech, data).
-
-2. strategy — go-to-market plan with:
-   - customerAcquisition: Channels, CAC targets, tactics.
-   - pricingStrategy: Tiers, annual discounts, positioning.
-   - growthStrategy: Phased plan (Phase 1 → Phase 2 → Phase 3 of growth) with concrete milestones.
-   - keyMilestones: MUST be a JSON array of 3-4 separate strings, NOT a single comma-joined string.
-     Correct: ["Month 6: $100K ARR", "Month 12: $250K ARR", "Month 18: $500K ARR"]
-     Wrong:   "Month 6: $100K ARR, Month 12: $250K ARR, Month 18: $500K ARR"
-
-3. structuralRisks — 3-4 risks inherent to the market/model/scale. For each:
-   - name (short), description (2 sentences max), implications (impact + mitigation).
-
-4. operationalRisks — 3-4 risks around execution, team, resources, regulation. Same structure as structural risks.
-
-Tailor everything to the specifics of the idea — no generic advice.
+- customerSegments: 2-3 specific segments that will pay or use the product. Name them concretely.
+- valueProposition: The unique value delivered, including 2-3 concrete differentiators.
+- revenueStreams: How money flows in. Include specific pricing tiers where applicable.
+- costStructure: Major cost buckets with rough percentages.
+- keyPartnerships: Specific partner categories with examples.
+- keyResources: 3-4 critical resources (people, tech, data).
 
 Idea title: {idea_title}
 Idea description: {idea_description}
@@ -160,41 +162,187 @@ Phase 1 context:
 """
 
 
+PHASE2_STRATEGY_PROMPT = """You are the Go-To-Market Strategy Agent.
+Your Role: Turn the confirmed business model into an executable plan for reaching customers, pricing the product, and growing.
+
+Produce four fields, grounded in the business model and the Phase 1 market data:
+
+- customerAcquisition: Channels, target CAC, and specific tactics (not generic "content marketing").
+- pricingStrategy: Tiers, annual discounts, and positioning rationale.
+- growthStrategy: Phased plan (Phase 1 → Phase 2 → Phase 3 of growth) with concrete actions per phase.
+- keyMilestones: 3-4 dated milestones, e.g. "Month 6: $100K ARR".
+
+Idea title: {idea_title}
+Idea description: {idea_description}
+
+Phase 1 context:
+{phase1_context}
+
+Confirmed business model:
+{business_model}
+"""
+
+
+PHASE2_RISK_ANALYSIS_PROMPT = """You are the Risk Analysis Agent.
+Your Role: Identify the risks that could kill this business, split into two distinct buckets.
+
+- structuralRisks: Inherent to the market, business model, or scale. Examples: the market shrinks, commoditisation erodes margin, platform dependency, unit economics break at scale, network-effect lock-in by an incumbent.
+- operationalRisks: Around execution, team, resources, compliance. Examples: key-person risk, hiring difficulty, regulatory exposure, vendor concentration, tech debt, support load.
+
+Produce 3-4 risks in EACH bucket. For every risk:
+- name: short label (2-5 words).
+- description: 2 sentences max — what the risk actually is.
+- implications: one sentence on realised impact + one concrete mitigation.
+
+Tie each risk specifically to the business model and the strategy above — no generic "market risk" filler.
+
+Idea title: {idea_title}
+Idea description: {idea_description}
+
+Phase 1 context:
+{phase1_context}
+
+Confirmed business model:
+{business_model}
+
+Confirmed strategy:
+{strategy}
+"""
+
+
+PHASE2_SYNTHESIZER_PROMPT = """You are the Phase 2 Synthesizer.
+Your Role: Package the prior three agents' outputs into the final Phase 2 object for the founder.
+
+You are not generating new content from scratch — use the supplied business model, strategy, and risk analysis faithfully. Tighten wording for consistency, resolve any contradiction against the Phase 1 context, and ensure every field is populated.
+
+Produce:
+- businessModel: use the business model below exactly.
+- strategy: use the strategy below exactly.
+- structuralRisks: from risk_analysis.structuralRisks.
+- operationalRisks: from risk_analysis.operationalRisks.
+
+Idea title: {idea_title}
+Idea description: {idea_description}
+
+Phase 1 context:
+{phase1_context}
+
+Business model:
+{business_model}
+
+Strategy:
+{strategy}
+
+Risk analysis:
+{risk_analysis}
+"""
+
+
 # ---------------------------------------------------------------------------
-# Phase 3 — 10-slide Pitch Deck. REWRITTEN to produce the exact Express
-# Phase3Output shape (pitchDeck with 10 named slides + changelog).
+# Phase 3 pipeline — 4 sub-agent prompts
+#
+# 10 pitch-deck slides are too much cognitive load for one LLM call.
+# Splitting by narrative function (story / market+model / execution+ask / synthesis)
+# keeps each agent focused on one mode of thinking.
+#
+# State flow:
+#   {idea_title, idea_description, phase1_context, phase2_context}  (seeded by api.py)
+#     → story_slides            ← StorySlidesAgent              (slides 1-3)
+#     → market_and_model_slides ← MarketAndModelSlidesAgent     (slides 4, 5, 7)
+#     → execution_slides        ← ExecutionSlidesAgent          (slides 6, 8, 9, 10)
+#     → phase3_output           ← Phase3SynthesizerAgent        (full deck + changelog)
+#
+# Slide-level requirements applied by every sub-agent:
+# - slideNumber is a fixed integer defined by the slide's role (see list below).
+# - title: short human-readable title, e.g. "The Problem".
+# - content: 80-200 words of plain text; use newlines and '•' bullet markers.
+# - speakerNotes: 2-3 sentence delivery guidance for the founder.
+# Never invent numbers that contradict the Phase 1 market data or Phase 2 business model.
 # ---------------------------------------------------------------------------
 
-PHASE3_PITCH_DECK_PROMPT = """You are the Investor Pitch Deck Generator Agent.
-Your Role: Produce a polished, investor-ready 10-slide pitch deck AND a changelog.
+PHASE3_STORY_SLIDES_PROMPT = """You are the Story Slides Agent for an investor pitch deck.
+Your Role: Write the opening three slides that hook the audience and set up the pain.
 
-You are given confirmed Phase 1 validation + confirmed Phase 2 business model + the original idea title/description. Synthesize everything into a pitch deck a founder could present at a seed investor meeting.
+Produce three slides (each with slideNumber, title, content, speakerNotes):
 
-You must produce exactly 10 slides with these fixed names and slide numbers:
+1. titleSlide (slideNumber=1) — Company name, one-line mission, who it's for. Make the hook land.
+2. problemSlide (slideNumber=2) — The acute pain point. Use specific scenarios and the Phase 1 kill assumption where relevant.
+3. solutionSlide (slideNumber=3) — How the product solves the problem. 3-4 bullet points, each a concrete capability (not a slogan).
 
- 1. titleSlide (slideNumber=1) — Company name, one-line mission, who it's for. Hook the audience.
- 2. problemSlide (slideNumber=2) — The acute pain point. Use specifics, scenarios, and the kill assumption where relevant.
- 3. solutionSlide (slideNumber=3) — How the product solves the problem. 3-4 bullet points.
- 4. marketOpportunitySlide (slideNumber=4) — TAM/SAM, growth rate, timing. Use the Phase 1 market data.
- 5. businessModelSlide (slideNumber=5) — Revenue streams, unit economics (LTV/CAC, gross margin). Use Phase 2 business model.
- 6. tractionSlide (slideNumber=6) — Current momentum and 4 milestones from Phase 2 keyMilestones.
- 7. competitionSlide (slideNumber=7) — Competitive landscape from Phase 1 competitors. Emphasise differentiation, never bash.
- 8. teamSlide (slideNumber=8) — Founding team roles, relevant background, advisors. (Use plausible placeholders — "CEO — vision & strategy, enterprise sales background" etc.)
- 9. financialsSlide (slideNumber=9) — Realistic 3-year ARR/user projection and key assumptions.
-10. askSlide (slideNumber=10) — Amount raised, use of funds (%), runway target, closing CTA.
+Slide content rules: 80-200 words of plain text per slide, newlines for paragraph breaks, '•' for bullets, 2-3 speakerNotes sentences guiding delivery.
 
-For every slide, populate:
-- slideNumber (integer 1-10, matching the list above)
-- title (human-readable slide title, e.g. "The Problem")
-- content (slide body as plain text; use newlines and '•' bullet markers; 80-200 words)
-- speakerNotes (2-3 sentence delivery guidance for the founder)
+Idea title: {idea_title}
+Idea description: {idea_description}
 
-Also produce a changelog list (3-6 entries) capturing what this Phase-3 generation added or modified. Each entry has:
-- section (e.g. "Pitch Deck", "Financial Projections", "Investment Ask")
+Phase 1 context:
+{phase1_context}
+
+Phase 2 context:
+{phase2_context}
+"""
+
+
+PHASE3_MARKET_AND_MODEL_PROMPT = """You are the Market & Business Model Slides Agent.
+Your Role: Write the three slides that prove the market is real and show how the business wins in it.
+
+Produce three slides (each with slideNumber, title, content, speakerNotes). Note the slide numbers — they match the final deck order, not the order in which you are producing them:
+
+4. marketOpportunitySlide (slideNumber=4) — TAM/SAM, growth rate, timing. Use the Phase 1 market feasibility data verbatim where possible.
+5. businessModelSlide (slideNumber=5) — Revenue streams and unit economics (LTV/CAC, gross margin). Use the Phase 2 business model.
+7. competitionSlide (slideNumber=7) — Competitive landscape from Phase 1 competitors. Emphasise differentiation; never bash a competitor.
+
+Slide content rules: 80-200 words of plain text per slide, newlines for paragraph breaks, '•' for bullets, 2-3 speakerNotes sentences guiding delivery.
+
+Ground every number in the supplied context — do not invent market sizes or CAGRs that contradict Phase 1.
+
+Idea title: {idea_title}
+Idea description: {idea_description}
+
+Phase 1 context:
+{phase1_context}
+
+Phase 2 context:
+{phase2_context}
+"""
+
+
+PHASE3_EXECUTION_SLIDES_PROMPT = """You are the Execution & Ask Slides Agent.
+Your Role: Write the four closing slides that show momentum, credibility, and the financial ask.
+
+Produce four slides (each with slideNumber, title, content, speakerNotes). Note the slide numbers:
+
+6. tractionSlide (slideNumber=6) — Current momentum plus 4 concrete milestones drawn from Phase 2 keyMilestones.
+8. teamSlide (slideNumber=8) — Founding team roles, relevant background, advisors. Use plausible placeholders (e.g. "CEO — vision & strategy, enterprise sales background").
+9. financialsSlide (slideNumber=9) — Realistic 3-year ARR/user projection and the key assumptions behind it. Anchor to the Phase 2 pricing and CAC.
+10. askSlide (slideNumber=10) — Amount being raised, use-of-funds breakdown (% per category), runway target, closing CTA.
+
+Slide content rules: 80-200 words of plain text per slide, newlines for paragraph breaks, '•' for bullets, 2-3 speakerNotes sentences guiding delivery.
+
+Idea title: {idea_title}
+Idea description: {idea_description}
+
+Phase 1 context:
+{phase1_context}
+
+Phase 2 context:
+{phase2_context}
+"""
+
+
+PHASE3_CHANGELOG_PROMPT = """You are the Phase 3 Changelog Agent.
+Your Role: Produce a short changelog describing what this pitch-deck generation added or modified.
+
+The three slide bundles (story, market+model, execution) have already been written by upstream agents, and the final 10-slide deck will be assembled deterministically in code — you are NOT re-emitting the slides. Focus only on the changelog.
+
+Produce 3-6 entries. Each entry has:
+- section: short label, e.g. "Pitch Deck", "Market Opportunity", "Financial Projections", "Investment Ask"
 - changeType: exactly one of "added", "modified", "removed"
-- description (one sentence)
+- description: one sentence describing what changed and why (ground it in the specifics of this idea).
 
-Keep it concrete and grounded in the supplied context — never invent numbers that contradict the Phase 1 market data or Phase 2 business model.
+Example structure (not content):
+- "Pitch Deck" / "added" / "Generated 10-slide investor deck covering problem, solution, market, model, competition, traction, team, financials, and ask."
+- "Financial Projections" / "added" / "3-year ARR projection anchored to Phase-2 pricing tiers and CAC."
+- "Investment Ask" / "added" / "Seed ask sized to reach the Phase-2 Month-18 milestone."
 
 Idea title: {idea_title}
 Idea description: {idea_description}

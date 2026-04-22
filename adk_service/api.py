@@ -25,9 +25,14 @@ import truststore
 truststore.inject_into_ssl()
 
 import json
+import logging
 import os
+import traceback
 import uuid
 from typing import Any
+
+logger = logging.getLogger("startup_validator.api")
+logging.basicConfig(level=logging.INFO)
 
 import uvicorn
 from dotenv import load_dotenv
@@ -45,6 +50,10 @@ from startup_validator.agent import (  # noqa: E402  — load_dotenv must run fi
     phase1_pipeline,
     phase2_pipeline,
     phase3_pipeline,
+)
+from utils.context_compactor import (
+    compact_phase1_context,
+    compact_phase2_context,
 )
 
 
@@ -106,18 +115,37 @@ class Phase3Request(BaseModel):
 _session_service = InMemorySessionService()
 
 
-async def _run_pipeline(
+def _normalize_output(raw: Any) -> Any:
+    """An `output_schema`'d agent may leave the state value as a JSON string,
+    a plain dict, or a Pydantic model depending on the ADK / LiteLlm path.
+    Normalise to a plain dict/list for the HTTP response.
+    """
+    if raw is None:
+        return None
+    if hasattr(raw, "model_dump"):
+        return raw.model_dump()
+    if isinstance(raw, str):
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return raw  # let caller decide; better than silently dropping
+    return raw
+
+
+async def _run_pipeline_state(
     pipeline,
     initial_state: dict[str, Any],
-    output_key: str,
     user_message: str,
-) -> Any:
-    """Create an ephemeral session, run the pipeline, return the final output.
+) -> dict[str, Any]:
+    """Create an ephemeral session, run the pipeline, return the full final state.
 
     `user_message` is delivered to the first agent as Content — this is how
-    ADK's LlmAgent receives the user's input. Subsequent sub-agents read prior
-    outputs from `initial_state` (plus any keys set by `output_key=` upstream)
-    via `{placeholder}` substitution in their prompts.
+    ADK's LlmAgent receives the user's input. Subsequent sub-agents read
+    earlier outputs via `{placeholder}` substitution in their prompts.
+
+    Errors are logged with a full traceback server-side (plain 502 detail
+    returned to the client) so pipeline failures are debuggable without
+    turning on `litellm._turn_on_debug()`.
     """
     user_id = f"express-{uuid.uuid4().hex[:8]}"
     session_id = uuid.uuid4().hex
@@ -143,42 +171,67 @@ async def _run_pipeline(
             session_id=session_id,
             new_message=content,
         ):
-            pass  # we don't need intermediate events here; we read state at the end
+            pass  # intermediate events not needed; we read state at the end
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Agent pipeline error: {exc}") from exc
+        logger.error(
+            "Pipeline %s failed (user=%s session=%s): %s\n%s",
+            getattr(pipeline, "name", pipeline.__class__.__name__),
+            user_id,
+            session_id,
+            exc,
+            traceback.format_exc(),
+        )
+        raise HTTPException(
+            status_code=502, detail=f"Agent pipeline error: {exc}"
+        ) from exc
 
     final_session = await _session_service.get_session(
         app_name=APP_NAME, user_id=user_id, session_id=session_id
     )
 
-    if not final_session or output_key not in final_session.state:
+    if not final_session:
+        raise HTTPException(
+            status_code=502, detail="Pipeline completed but session was lost."
+        )
+
+    return dict(final_session.state)
+
+
+async def _run_pipeline(
+    pipeline,
+    initial_state: dict[str, Any],
+    output_key: str,
+    user_message: str,
+) -> Any:
+    """Run a pipeline and return a single normalised state value."""
+    state = await _run_pipeline_state(pipeline, initial_state, user_message)
+    if output_key not in state:
+        logger.error(
+            "Pipeline %s finished but '%s' missing. State keys: %s",
+            getattr(pipeline, "name", pipeline.__class__.__name__),
+            output_key,
+            list(state.keys()),
+        )
         raise HTTPException(
             status_code=502,
             detail=f"Pipeline completed but '{output_key}' missing from session state.",
         )
-
-    raw = final_session.state[output_key]
-
-    # output_schema'd agents may return a JSON string OR a dict depending on
-    # the ADK / LiteLlm path; normalize to a plain dict for the HTTP response.
-    if isinstance(raw, str):
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise HTTPException(
-                status_code=502,
-                detail=f"Pipeline produced non-JSON output for '{output_key}'.",
-            ) from exc
-    return raw
+    return _normalize_output(state[output_key])
 
 
 def _format_phase1_context(phase1_data: dict[str, Any]) -> str:
-    """Render Phase 1 Mongo data into a compact text block for downstream prompts."""
-    return json.dumps(phase1_data, indent=2, default=str)
+    """Render Phase 1 Mongo data for downstream prompts.
+
+    Uses compact JSON (no indentation, tight separators) — every Phase 2 and
+    Phase 3 sub-agent receives this string, and Groq free-tier is capped at
+    100K TPD. Compact serialization is ~30% smaller than `indent=2` for the
+    same content, which multiplies across the ~8 LLM calls per full cycle.
+    """
+    return json.dumps(phase1_data, separators=(",", ":"), default=str)
 
 
 def _format_phase2_context(phase2_data: dict[str, Any]) -> str:
-    return json.dumps(phase2_data, indent=2, default=str)
+    return json.dumps(phase2_data, separators=(",", ":"), default=str)
 
 
 @app.get("/health")
@@ -221,23 +274,83 @@ async def generate_phase2(req: Phase2Request) -> dict[str, Any]:
 
 @app.post("/agents/phase3")
 async def generate_phase3(req: Phase3Request) -> dict[str, Any]:
-    """Run the Phase 3 pipeline and return IPhase3Data-shaped JSON (10-slide deck)."""
+    """Run the Phase 3 pipeline and return IPhase3Data-shaped JSON.
+
+    The three slide bundles are written to session state by the sub-agents;
+    the final 10-slide `pitchDeck` is assembled here in Python rather than by
+    a synthesizer LLM. Only the `changelog` is LLM-generated (last sub-agent).
+    """
     user_message = (
         f"Generate the Phase 3 investor pitch deck for:\n\n"
         f"Title: {req.ideaTitle}\nDescription: {req.ideaDescription}"
     )
-    output = await _run_pipeline(
+    compact_p1 = compact_phase1_context(req.phase1Data)
+    compact_p2 = compact_phase2_context(req.phase2Data)
+    state = await _run_pipeline_state(
         pipeline=phase3_pipeline,
         initial_state={
             "idea_title": req.ideaTitle,
-            "idea_description": req.ideaDescription,
-            "phase1_context": _format_phase1_context(req.phase1Data),
-            "phase2_context": _format_phase2_context(req.phase2Data),
+            "idea_description": req.ideaDescription,                    
+            "phase1_context": json.dumps(compact_p1, separators=(",", ":")),
+            "phase2_context": json.dumps(compact_p2, separators=(",", ":")),
+            # "phase1_context": _format_phase1_context(req.phase1Data),
+            # "phase2_context": _format_phase2_context(req.phase2Data),
         },
-        output_key="phase3_output",
         user_message=user_message,
     )
-    return output
+
+    required_keys = (
+        "story_slides",
+        "market_and_model_slides",
+        "execution_slides",
+        "phase3_changelog",
+    )
+    missing = [k for k in required_keys if k not in state]
+    if missing:
+        logger.error(
+            "Phase 3 pipeline finished but state is missing keys: %s. "
+            "Present keys: %s",
+            missing,
+            list(state.keys()),
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Phase 3 pipeline missing state keys: {missing}",
+        )
+
+    story = _normalize_output(state["story_slides"]) or {}
+    market = _normalize_output(state["market_and_model_slides"]) or {}
+    execution = _normalize_output(state["execution_slides"]) or {}
+    changelog_wrapper = _normalize_output(state["phase3_changelog"]) or {}
+
+    pitch_deck = {
+        "titleSlide": story.get("titleSlide"),
+        "problemSlide": story.get("problemSlide"),
+        "solutionSlide": story.get("solutionSlide"),
+        "marketOpportunitySlide": market.get("marketOpportunitySlide"),
+        "businessModelSlide": market.get("businessModelSlide"),
+        "tractionSlide": execution.get("tractionSlide"),
+        "competitionSlide": market.get("competitionSlide"),
+        "teamSlide": execution.get("teamSlide"),
+        "financialsSlide": execution.get("financialsSlide"),
+        "askSlide": execution.get("askSlide"),
+    }
+
+    missing_slides = [name for name, slide in pitch_deck.items() if not slide]
+    if missing_slides:
+        logger.error(
+            "Phase 3 sub-agents returned incomplete slide bundles. Missing: %s",
+            missing_slides,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Phase 3 slide bundles incomplete: {missing_slides}",
+        )
+
+    return {
+        "pitchDeck": pitch_deck,
+        "changelog": changelog_wrapper.get("changelog", []),
+    }
 
 
 # ---------------------------------------------------------------------------
