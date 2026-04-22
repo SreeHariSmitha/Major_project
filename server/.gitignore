@@ -13,31 +13,40 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-# Build outputs
+# Compiled output
 dist
 dist-ssr
+build
 *.local
-
-# Editor
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+*.map
 
 # Environment
 .env
 .env.local
 .env.*.local
 
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sw?
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
 # OS
+.DS_Store
 .AppleDouble
 .LSOverride
 ._*
 .apdisk
 Thumbs.db
 ehthumbs.db
+
+# Temporary
+*.tmp
+*.bak
+temp/
+tmp/

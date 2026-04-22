@@ -5,6 +5,7 @@ import Version from '../models/Version.js';
 import { AuthenticatedRequest } from '../middleware/authMiddleware.js';
 import { z } from 'zod';
 import { ZodError } from 'zod';
+import { callAgent, AgentServiceError } from '../utils/agentClient.js';
 
 /**
  * API Response Interface
@@ -636,9 +637,27 @@ export const generatePhase1 = async (
       return;
     }
 
-    // For MVP: Generate template-based analysis from description
-    // In future: Replace with AI generation (OpenAI/Claude)
-    const phase1Data = generatePhase1Content(idea.title, idea.description);
+    // Generate Phase 1 content via the adk_service FastAPI sidecar.
+    let phase1Data;
+    try {
+      const aiOutput = await callAgent<Record<string, any>>('phase1', {
+        ideaTitle: idea.title,
+        ideaDescription: idea.description,
+      });
+      phase1Data = { ...aiOutput, generatedAt: new Date() };
+    } catch (err) {
+      const msg = err instanceof AgentServiceError ? err.message : String(err);
+      console.error('[Phase1] Agent generation failed:', msg);
+      res.status(502).json({
+        success: false,
+        error: {
+          code: 'AGENT_SERVICE_ERROR',
+          message: 'AI agent service is unavailable. Please try again shortly.',
+          details: { phase: 'phase1', reason: msg },
+        },
+      });
+      return;
+    }
 
     // Update idea with Phase 1 data
     idea.phase1Data = phase1Data;
@@ -1033,78 +1052,6 @@ function generateRefinedSection(
 }
 
 /**
- * Helper function to generate Phase 1 content (MVP template-based)
- * In future: Replace with AI generation
- */
-function generatePhase1Content(title: string, description: string) {
-  // Extract keywords from description for template generation
-  const words = description.toLowerCase().split(/\s+/);
-  const hasApp = words.some(w => ['app', 'application', 'platform', 'software', 'saas'].includes(w));
-  const hasMarketplace = words.some(w => ['marketplace', 'market', 'store', 'shop'].includes(w));
-  const hasAI = words.some(w => ['ai', 'artificial', 'intelligence', 'ml', 'machine', 'learning'].includes(w));
-  const hasB2B = words.some(w => ['b2b', 'business', 'enterprise', 'corporate'].includes(w));
-  const hasB2C = words.some(w => ['b2c', 'consumer', 'user', 'customer', 'people'].includes(w));
-
-  // Generate clean summary
-  const cleanSummary = `${title} is a ${hasAI ? 'AI-powered ' : ''}${hasApp ? 'platform ' : 'solution '}that ${description.substring(0, 150)}${description.length > 150 ? '...' : ''}. It aims to serve ${hasB2B ? 'businesses' : hasB2C ? 'consumers' : 'users'} by providing innovative solutions in this space.`;
-
-  // Generate market feasibility
-  const marketFeasibility = {
-    marketSize: hasAI ? '$150B+ global AI market by 2026' :
-                hasMarketplace ? '$7T+ global e-commerce market' :
-                hasB2B ? '$500B+ B2B software market' :
-                '$200B+ consumer technology market',
-    growthTrajectory: hasAI ? '25%+ CAGR through 2027' :
-                      hasMarketplace ? '15% CAGR through 2026' :
-                      '12-18% annual growth expected',
-    keyTrends: [
-      hasAI ? 'Rapid AI adoption across industries' : 'Digital transformation acceleration',
-      hasB2B ? 'Enterprise automation demand growing' : 'Consumer digital behavior shift',
-      'Increased focus on user experience',
-      hasMarketplace ? 'Rise of vertical marketplaces' : 'Platform consolidation trend',
-    ],
-    timing: 'Now' as const,
-  };
-
-  // Generate competitive analysis
-  const competitiveAnalysis = [
-    {
-      name: hasAI ? 'OpenAI/ChatGPT' : hasMarketplace ? 'Amazon/eBay' : 'Established Market Leaders',
-      difference: 'Broad, generic approach serving mass market',
-      advantage: `${title} offers a more focused, specialized solution for the target audience`,
-    },
-    {
-      name: hasB2B ? 'Salesforce/HubSpot' : 'Traditional Competitors',
-      difference: 'Legacy systems with complex onboarding',
-      advantage: 'Modern, intuitive user experience with faster time-to-value',
-    },
-    {
-      name: 'Emerging Startups',
-      difference: 'Limited features or narrow focus',
-      advantage: 'Comprehensive solution with unique value proposition',
-    },
-  ];
-
-  // Generate kill assumption with test guidance
-  const killAssumption = hasB2B
-    ? `Assumes target businesses will pay $${Math.floor(Math.random() * 500 + 100)}/month for this solution and that decision-makers can be reached through targeted outreach.`
-    : `Assumes users will actively adopt ${title} over existing alternatives and that the value proposition is compelling enough to drive organic growth.`;
-
-  const killAssumptionTestGuidance = hasB2B
-    ? 'Validate by: (1) Conducting 10+ discovery calls with target decision-makers, (2) Testing willingness to pay with a landing page and pricing table, (3) Measuring sign-up conversion rates.'
-    : 'Validate by: (1) Running a landing page test with 500+ visitors, (2) Conducting 20+ user interviews to confirm pain points, (3) Building a waitlist to gauge demand.';
-
-  return {
-    cleanSummary,
-    marketFeasibility,
-    competitiveAnalysis,
-    killAssumption,
-    killAssumptionTestGuidance,
-    generatedAt: new Date(),
-  };
-}
-
-/**
  * Get Version History - Story 5.2 & 5.3
  * GET /api/v1/ideas/:id/versions
  */
@@ -1386,8 +1333,28 @@ export const generatePhase2 = async (
       return;
     }
 
-    // Generate Phase 2 content using Phase 1 data
-    const phase2Data = generatePhase2Content(idea.title, idea.description, idea.phase1Data);
+    // Generate Phase 2 content via the adk_service FastAPI sidecar.
+    let phase2Data;
+    try {
+      const aiOutput = await callAgent<Record<string, any>>('phase2', {
+        ideaTitle: idea.title,
+        ideaDescription: idea.description,
+        phase1Data: idea.phase1Data,
+      });
+      phase2Data = { ...aiOutput, generatedAt: new Date() };
+    } catch (err) {
+      const msg = err instanceof AgentServiceError ? err.message : String(err);
+      console.error('[Phase2] Agent generation failed:', msg);
+      res.status(502).json({
+        success: false,
+        error: {
+          code: 'AGENT_SERVICE_ERROR',
+          message: 'AI agent service is unavailable. Please try again shortly.',
+          details: { phase: 'phase2', reason: msg },
+        },
+      });
+      return;
+    }
 
     // Update idea with Phase 2 data
     idea.phase2Data = phase2Data;
@@ -1608,13 +1575,29 @@ export const generatePhase3 = async (
       return;
     }
 
-    // Generate Phase 3 content
-    const phase3Data = generatePhase3Content(
-      idea.title,
-      idea.description,
-      idea.phase1Data,
-      idea.phase2Data
-    );
+    // Generate Phase 3 content via the adk_service FastAPI sidecar.
+    let phase3Data;
+    try {
+      const aiOutput = await callAgent<Record<string, any>>('phase3', {
+        ideaTitle: idea.title,
+        ideaDescription: idea.description,
+        phase1Data: idea.phase1Data,
+        phase2Data: idea.phase2Data,
+      });
+      phase3Data = { ...aiOutput, generatedAt: new Date() };
+    } catch (err) {
+      const msg = err instanceof AgentServiceError ? err.message : String(err);
+      console.error('[Phase3] Agent generation failed:', msg);
+      res.status(502).json({
+        success: false,
+        error: {
+          code: 'AGENT_SERVICE_ERROR',
+          message: 'AI agent service is unavailable. Please try again shortly.',
+          details: { phase: 'phase3', reason: msg },
+        },
+      });
+      return;
+    }
 
     // Update idea
     idea.phase = 'Phase 3';
@@ -1762,218 +1745,6 @@ export const confirmPhase3 = async (
     });
   }
 };
-
-/**
- * Helper function to generate Phase 3 pitch deck content
- */
-function generatePhase3Content(title: string, description: string, phase1Data: any, phase2Data: any) {
-  const descLower = description.toLowerCase();
-  const isB2B = descLower.includes('b2b') || descLower.includes('business') || descLower.includes('enterprise');
-  const isSaaS = descLower.includes('saas') || descLower.includes('subscription') || descLower.includes('platform');
-  const hasAI = descLower.includes('ai') || descLower.includes('artificial intelligence') || descLower.includes('machine learning');
-
-  // Generate 10-slide pitch deck
-  const pitchDeck = {
-    titleSlide: {
-      slideNumber: 1,
-      title: title,
-      content: `${phase1Data?.cleanSummary || description}\n\nTransforming ${isB2B ? 'enterprise' : 'consumer'} experiences through ${hasAI ? 'AI-powered' : 'innovative'} solutions.`,
-      speakerNotes: `Introduce the company and capture attention with a compelling one-liner. Emphasize the transformative potential of the solution.`,
-    },
-    problemSlide: {
-      slideNumber: 2,
-      title: 'The Problem',
-      content: `Today's ${isB2B ? 'businesses' : 'consumers'} face critical challenges:\n\n• Inefficient processes wasting time and resources\n• Legacy solutions failing to meet modern expectations\n• Growing demand for ${hasAI ? 'intelligent automation' : 'seamless experiences'}\n• ${phase1Data?.killAssumption ? `Key assumption: ${phase1Data.killAssumption.substring(0, 150)}...` : 'Increasing complexity without adequate tools'}`,
-      speakerNotes: `Paint a vivid picture of the pain points. Use specific examples and data points. Make the audience feel the problem.`,
-    },
-    solutionSlide: {
-      slideNumber: 3,
-      title: 'Our Solution',
-      content: `${title} provides:\n\n• ${phase2Data?.businessModel?.valueProposition?.split('.')[0] || `A comprehensive ${hasAI ? 'AI-powered' : 'modern'} platform`}\n• ${hasAI ? 'Intelligent automation that learns and adapts' : 'Streamlined workflows that save time'}\n• ${isSaaS ? 'Cloud-native architecture for instant deployment' : 'Enterprise-grade reliability and security'}\n• ${isB2B ? 'Seamless integration with existing tools' : 'Intuitive user experience for everyone'}`,
-      speakerNotes: `Demonstrate how your solution directly addresses each problem. Use visuals or demos if possible. Keep it simple and memorable.`,
-    },
-    marketOpportunitySlide: {
-      slideNumber: 4,
-      title: 'Market Opportunity',
-      content: `${phase1Data?.marketFeasibility?.marketSize || '$500B+ addressable market'}\n\n• Growth: ${phase1Data?.marketFeasibility?.growthTrajectory || '15-20% annual growth'}\n• Timing: ${phase1Data?.marketFeasibility?.timing || 'Now'} - Market conditions are ideal\n• Key Trends:\n  - ${phase1Data?.marketFeasibility?.keyTrends?.[0] || 'Digital transformation acceleration'}\n  - ${phase1Data?.marketFeasibility?.keyTrends?.[1] || 'Remote work driving demand'}\n  - ${phase1Data?.marketFeasibility?.keyTrends?.[2] || 'AI adoption reaching mainstream'}`,
-      speakerNotes: `Validate the market size with credible sources. Explain why NOW is the right time. Show the trend lines moving in your favor.`,
-    },
-    businessModelSlide: {
-      slideNumber: 5,
-      title: 'Business Model',
-      content: `Revenue Streams:\n${phase2Data?.businessModel?.revenueStreams || 'SaaS subscriptions, Enterprise contracts, Professional services'}\n\nUnit Economics:\n• Customer Segments: ${phase2Data?.businessModel?.customerSegments?.substring(0, 100) || 'Enterprise and mid-market companies'}...\n• LTV/CAC Target: ${isB2B ? '5:1' : '3:1'}\n• Gross Margin: ${isSaaS ? '70-80%' : '50-60%'}`,
-      speakerNotes: `Show you understand how to make money. Present clear unit economics. Demonstrate path to profitability.`,
-    },
-    tractionSlide: {
-      slideNumber: 6,
-      title: 'Traction & Milestones',
-      content: `Key Milestones:\n\n${phase2Data?.strategy?.keyMilestones?.map((m: string, i: number) => `${i + 1}. ${m}`).join('\n') || '1. Product launch\n2. First paying customers\n3. $100K ARR\n4. Series A ready'}\n\nGrowth Strategy:\n${phase2Data?.strategy?.growthStrategy?.substring(0, 200) || 'Focused customer acquisition through inbound and outbound channels'}...`,
-      speakerNotes: `Show momentum and proof points. Highlight key wins and customer logos. Present a clear roadmap to next milestones.`,
-    },
-    competitionSlide: {
-      slideNumber: 7,
-      title: 'Competitive Landscape',
-      content: `Our Differentiation:\n\n${phase1Data?.competitiveAnalysis?.slice(0, 3).map((c: any) => `vs ${c.name}:\n• Their approach: ${c.difference}\n• Our advantage: ${c.advantage}`).join('\n\n') || '• vs Established Players: More agile and focused\n• vs Startups: Better technology and team\n• vs Status Quo: 10x improvement in efficiency'}`,
-      speakerNotes: `Don't bash competitors. Show you understand the landscape. Emphasize your unique positioning and sustainable advantages.`,
-    },
-    teamSlide: {
-      slideNumber: 8,
-      title: 'The Team',
-      content: `Founding Team:\n\n• CEO - Vision & Strategy\n  ${isB2B ? 'Enterprise sales background, domain expertise' : 'Consumer product experience, growth hacking'}\n\n• CTO - Technology & Product\n  ${hasAI ? 'AI/ML expertise, scaled systems at prior companies' : 'Full-stack engineering, shipped products at scale'}\n\n• [Key Hire] - ${isB2B ? 'Sales/Customer Success' : 'Growth/Marketing'}\n  Building pipeline and relationships\n\nAdvisors: Industry experts and successful founders`,
-      speakerNotes: `Highlight relevant experience and why THIS team can win. Show complementary skills. Mention notable advisors or investors.`,
-    },
-    financialsSlide: {
-      slideNumber: 9,
-      title: 'Financials & Projections',
-      content: `3-Year Projection:\n\n• Year 1: ${isB2B ? '$500K ARR' : '50K users'} - Product-market fit\n• Year 2: ${isB2B ? '$2M ARR' : '200K users'} - Scale go-to-market\n• Year 3: ${isB2B ? '$8M ARR' : '1M users'} - Market expansion\n\nKey Assumptions:\n• ${phase2Data?.strategy?.customerAcquisition?.substring(0, 100) || 'Efficient customer acquisition through multiple channels'}...\n• ${isSaaS ? 'Net revenue retention > 120%' : 'Strong organic growth and referrals'}`,
-      speakerNotes: `Be realistic but ambitious. Show you understand the drivers of growth. Prepare to defend assumptions.`,
-    },
-    askSlide: {
-      slideNumber: 10,
-      title: 'The Ask',
-      content: `Raising: $${isB2B ? '2-3M Seed' : '1-1.5M Pre-seed'}\n\nUse of Funds:\n• 50% - Product & Engineering\n• 30% - ${isB2B ? 'Sales & Customer Success' : 'Marketing & Growth'}\n• 20% - Operations & G&A\n\n18-Month Runway to:\n• ${phase2Data?.strategy?.keyMilestones?.[2] || 'Significant revenue milestone'}\n• Clear Series A metrics\n\nLet's build the future of ${hasAI ? 'AI-powered' : 'innovative'} ${isB2B ? 'enterprise' : 'consumer'} solutions together.`,
-      speakerNotes: `Be specific about the ask. Show clear use of funds. End with a compelling call to action.`,
-    },
-  };
-
-  // Generate changelog (what's new since last version)
-  const changelog = [
-    {
-      section: 'Pitch Deck',
-      changeType: 'added' as const,
-      description: 'Generated investor-ready 10-slide pitch deck',
-    },
-    {
-      section: 'Problem Statement',
-      changeType: 'added' as const,
-      description: 'Crystallized market problem based on Phase 1 analysis',
-    },
-    {
-      section: 'Financial Projections',
-      changeType: 'added' as const,
-      description: 'Created 3-year revenue projections based on business model',
-    },
-    {
-      section: 'Investment Ask',
-      changeType: 'added' as const,
-      description: 'Defined funding requirements and use of funds',
-    },
-  ];
-
-  return {
-    pitchDeck,
-    changelog,
-    generatedAt: new Date(),
-  };
-}
-
-/**
- * Helper function to generate Phase 2 content (MVP template-based)
- * Uses Phase 1 data to generate business model, strategy, and risks
- */
-function generatePhase2Content(title: string, description: string, phase1Data: any) {
-  const descLower = description.toLowerCase();
-  const isB2B = descLower.includes('b2b') || descLower.includes('business') || descLower.includes('enterprise');
-  const isB2C = descLower.includes('b2c') || descLower.includes('consumer');
-  const isSaaS = descLower.includes('saas') || descLower.includes('subscription') || descLower.includes('platform');
-  const isMarketplace = descLower.includes('marketplace') || descLower.includes('platform');
-  const hasAI = descLower.includes('ai') || descLower.includes('artificial intelligence') || descLower.includes('machine learning');
-
-  // Generate Business Model
-  const businessModel = {
-    customerSegments: isB2B
-      ? `Primary: Mid-to-large enterprises (500+ employees) in target industries seeking ${hasAI ? 'AI-powered' : 'digital'} solutions. Secondary: Fast-growing startups requiring scalable ${title.toLowerCase()} capabilities.`
-      : `Primary: Tech-savvy consumers aged 25-45 seeking ${hasAI ? 'intelligent' : 'modern'} solutions. Secondary: Early adopters and power users who value innovation and efficiency.`,
-    valueProposition: `${title} delivers ${hasAI ? 'AI-enhanced' : 'streamlined'} ${phase1Data?.cleanSummary?.substring(0, 100) || description.substring(0, 100)}... Key differentiators: (1) ${isSaaS ? 'Cloud-native architecture' : 'Modern user experience'}, (2) ${hasAI ? 'Intelligent automation' : 'Seamless integration'}, (3) ${isB2B ? 'Enterprise-grade security' : 'Consumer-friendly design'}.`,
-    revenueStreams: isSaaS
-      ? `Primary: SaaS subscriptions (${isB2B ? '$99-999/month per seat' : '$9.99-29.99/month'}). Secondary: ${isB2B ? 'Enterprise contracts ($10K-100K/year)' : 'Premium features and add-ons'}. Tertiary: ${isMarketplace ? 'Transaction fees (2-5%)' : 'Professional services and implementation'}.`
-      : isMarketplace
-        ? `Primary: Transaction fees (5-15% per transaction). Secondary: Featured listings and promotions. Tertiary: Premium seller tools and analytics.`
-        : `Primary: ${isB2B ? 'License fees and annual contracts' : 'Freemium with premium upgrades'}. Secondary: ${isB2B ? 'Implementation and support services' : 'In-app purchases and premium content'}.`,
-    costStructure: `Major costs: (1) Engineering and product development (40-50% of budget), (2) ${isB2B ? 'Sales and account management' : 'Marketing and user acquisition'} (20-30%), (3) Infrastructure and cloud services (15-20%), (4) Customer support and success (10-15%). Initial focus on product-market fit before scaling operations.`,
-    keyPartnerships: isB2B
-      ? `Technology partners (cloud providers, integration platforms), Channel partners (system integrators, consultants), Industry associations, ${hasAI ? 'AI/ML research institutions' : 'Technology vendors'}.`
-      : `Platform partners (app stores, distribution), Marketing partners (influencers, affiliates), Technology partners (payment processors, analytics), ${hasAI ? 'AI infrastructure providers' : 'Content and data providers'}.`,
-    keyResources: `(1) Engineering talent (${hasAI ? 'ML engineers, data scientists' : 'full-stack developers'}), (2) ${isB2B ? 'Sales and customer success team' : 'Growth and marketing team'}, (3) ${hasAI ? 'Proprietary AI models and training data' : 'Product and design capabilities'}, (4) Cloud infrastructure and scalable architecture.`,
-  };
-
-  // Generate Strategy
-  const strategy = {
-    customerAcquisition: isB2B
-      ? `Inbound: Content marketing, SEO, thought leadership. Outbound: Targeted sales outreach to ${phase1Data?.marketFeasibility?.marketSize || 'target market'}. Events: Industry conferences and webinars. Partnerships: Channel partners and resellers. Target CAC: $${isB2B ? '1,000-5,000' : '50-200'} per customer.`
-      : `Digital: Paid social (Meta, TikTok), search (Google), and app store optimization. Organic: Referral programs, viral features, content marketing. Partnerships: Influencer collaborations and cross-promotions. Target CAC: $${isB2C ? '10-50' : '25-100'} per user.`,
-    pricingStrategy: isSaaS
-      ? `Tiered pricing model: Starter (free/low-cost for adoption), Professional (${isB2B ? '$99-299/month' : '$9.99/month'}), Enterprise (${isB2B ? 'custom pricing' : '$29.99/month'}). Focus on value-based pricing tied to customer outcomes. Annual billing discount: 20%.`
-      : `${isMarketplace ? 'Transaction-based pricing (5-15% fee) with optional premium subscriptions' : 'Freemium model with premium upgrades ($4.99-19.99/month)'}. Competitive positioning: ${phase1Data?.competitiveAnalysis?.[0]?.advantage || 'Better value than alternatives'}.`,
-    growthStrategy: `Phase 1 (0-6 months): Product-market fit with ${isB2B ? '10-20 pilot customers' : '1,000-5,000 early adopters'}. Phase 2 (6-18 months): Scale ${isB2B ? 'sales team and expand verticals' : 'user acquisition and optimize conversion'}. Phase 3 (18+ months): ${isMarketplace ? 'Geographic expansion and category growth' : 'Platform expansion and ecosystem development'}. Target: ${phase1Data?.marketFeasibility?.growthTrajectory || '20%+ monthly growth'}.`,
-    keyMilestones: [
-      `Month 3: ${isB2B ? '5 paying customers' : '1,000 active users'}`,
-      `Month 6: ${isB2B ? '$50K ARR' : '10,000 active users'}`,
-      `Month 12: ${isB2B ? '$250K ARR, 25 customers' : '50,000 active users, profitability path clear'}`,
-      `Month 18: ${isB2B ? '$1M ARR, Series A ready' : '200,000 users, expansion markets identified'}`,
-    ],
-  };
-
-  // Generate Structural Risks
-  const structuralRisks = [
-    {
-      name: 'Market Risk',
-      description: `The ${phase1Data?.marketFeasibility?.marketSize || 'target market'} may evolve differently than expected, with changing customer needs or competitive dynamics.`,
-      implications: `Could require significant pivot. Mitigation: Continuous customer discovery, modular product architecture, diversified customer segments.`,
-    },
-    {
-      name: 'Business Model Risk',
-      description: isSaaS
-        ? 'Unit economics may not support sustainable growth at current pricing levels.'
-        : isMarketplace
-          ? 'Chicken-and-egg problem: need both supply and demand simultaneously.'
-          : 'Revenue model assumptions may not align with customer willingness to pay.',
-      implications: `${isSaaS ? 'May need to adjust pricing or reduce CAC significantly' : isMarketplace ? 'High customer acquisition costs until critical mass' : 'May need to explore alternative monetization strategies'}. Mitigation: Early validation of pricing, focus on unit economics from day one.`,
-    },
-    {
-      name: 'Scaling Risk',
-      description: `Current architecture and team may not support 10x growth without significant investment.`,
-      implications: `Growth could plateau or require major re-architecture. Mitigation: Build scalable infrastructure from start, plan hiring roadmap, document processes early.`,
-    },
-    {
-      name: 'Competitive Risk',
-      description: `Larger players (${phase1Data?.competitiveAnalysis?.[0]?.name || 'established competitors'}) could enter space or acquire competitors.`,
-      implications: `Market share pressure, price competition. Mitigation: Build strong brand, focus on niche, create switching costs, move fast.`,
-    },
-  ];
-
-  // Generate Operational Risks
-  const operationalRisks = [
-    {
-      name: 'Team Risk',
-      description: `Key person dependencies and potential skill gaps in ${hasAI ? 'AI/ML expertise' : 'technical leadership'}.`,
-      implications: `Single points of failure could delay product development. Mitigation: Document knowledge, cross-train team, plan key hires, consider advisors.`,
-    },
-    {
-      name: 'Resource Risk',
-      description: `${isB2B ? 'Longer sales cycles may require more runway than planned' : 'User acquisition costs may exceed projections'}.`,
-      implications: `May need to raise additional capital or reduce burn. Mitigation: Maintain 18-month runway, multiple funding options, clear path to profitability.`,
-    },
-    {
-      name: 'Execution Risk',
-      description: `${hasAI ? 'AI model performance and reliability challenges' : 'Product complexity may lead to longer development cycles'}.`,
-      implications: `Delayed launch or underwhelming initial product. Mitigation: MVP mindset, rapid iteration, customer feedback loops, realistic timelines.`,
-    },
-    {
-      name: 'Regulatory Risk',
-      description: `${hasAI ? 'AI regulations and data privacy laws (GDPR, CCPA, AI Act)' : isB2B ? 'Industry-specific compliance requirements (SOC2, HIPAA if healthcare)' : 'Data privacy and consumer protection regulations'}.`,
-      implications: `Could require additional investment in compliance or limit market access. Mitigation: Build compliance into product design, consult legal early, monitor regulatory developments.`,
-    },
-  ];
-
-  return {
-    businessModel,
-    strategy,
-    structuralRisks,
-    operationalRisks,
-    generatedAt: new Date(),
-  };
-}
 
 /**
  * Helper function to generate diff between two versions

@@ -702,48 +702,136 @@ export function IdeaDetailPage() {
   const phase1Status = getPhaseStepperStatus(1);
   const hasPhase1Data = idea.phase1Data && idea.phase1Data.cleanSummary;
 
+  const phaseLabels: Record<number, string> = {
+    1: 'Discovery',
+    2: 'Business Model',
+    3: 'Pitch Deck',
+  };
+
+  const daysSinceCreated = Math.max(
+    1,
+    Math.floor((Date.now() - new Date(idea.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+  );
+
+  const confirmedCount = [1, 2, 3].filter((p) => getPhaseStepperStatus(p as 1 | 2 | 3) === 'confirmed').length;
+
   return (
     <div className="min-h-screen w-full bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
+      <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-50">
+        <div className="w-full px-4 sm:px-6 lg:px-10">
+          <div className="flex items-center justify-between h-16 gap-4">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <Link
                 to="/dashboard"
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
+                aria-label="Back to dashboard"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6" />
                 </svg>
               </Link>
-              <div>
-                <h1 className="text-lg font-bold text-slate-900 line-clamp-1">{idea.title}</h1>
-                <p className="text-xs text-slate-500">Version {idea.version}</p>
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shadow-indigo-500/30 flex-shrink-0">
+                  <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-[15px] font-semibold text-slate-900 truncate leading-tight">{idea.title}</h1>
+                  <p className="text-[11px] text-slate-500 font-mono leading-tight">
+                    v{idea.version} · {idea.phase}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <VersionHistoryPanel
                 ideaId={idea.id}
                 currentVersion={idea.version}
               />
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                idea.phase === 'Phase 1' ? 'bg-amber-100 text-amber-700' :
-                idea.phase === 'Phase 2' ? 'bg-blue-100 text-blue-700' :
-                'bg-purple-100 text-purple-700'
-              }`}>
-                {idea.phase}
-              </span>
+              <Link
+                to="/dashboard"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                Dashboard
+              </Link>
             </div>
           </div>
         </div>
       </header>
 
+      {/* Dark hero banner */}
+      <section className="relative overflow-hidden bg-slate-950 text-white border-b border-white/5">
+        <div
+          className="absolute inset-0 opacity-[0.12]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+            maskImage: 'radial-gradient(ellipse 70% 60% at 30% 50%, black 40%, transparent 85%)',
+          }}
+        />
+        <div className="absolute -top-20 -left-10 w-[420px] h-[420px] bg-indigo-500/25 rounded-full blur-[110px] pointer-events-none" />
+        <div className="absolute -bottom-10 right-0 w-[360px] h-[360px] bg-violet-500/20 rounded-full blur-[110px] pointer-events-none" />
+
+        <div className="relative w-full px-4 sm:px-6 lg:px-10 py-10">
+          <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
+            {/* Title & description */}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/10 backdrop-blur border border-white/10 text-[11px] font-semibold uppercase tracking-wider text-slate-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                  {idea.phase} · {phaseLabels[parseInt(idea.phase.replace('Phase ', ''), 10)]}
+                </span>
+                <span className="text-[11px] font-mono text-slate-400">v{idea.version}</span>
+                {idea.archived && (
+                  <span className="px-2 py-0.5 rounded-md bg-slate-800 border border-white/10 text-[11px] font-medium text-slate-300">
+                    Archived
+                  </span>
+                )}
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-[1.1] mb-3 text-white">
+                {idea.title}
+              </h1>
+              <p className="text-slate-300 text-[15px] leading-relaxed max-w-3xl line-clamp-3">
+                {idea.description}
+              </p>
+            </div>
+
+            {/* Stats card */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-4">
+                <div className="text-xs text-slate-400 mb-1">Progress</div>
+                <div className="text-2xl font-semibold text-white">{confirmedCount}/3</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">phases confirmed</div>
+              </div>
+              <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-4">
+                <div className="text-xs text-slate-400 mb-1">Version</div>
+                <div className="text-2xl font-semibold text-white">{idea.version}</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">current</div>
+              </div>
+              <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-4">
+                <div className="text-xs text-slate-400 mb-1">Age</div>
+                <div className="text-2xl font-semibold text-white">{daysSinceCreated}d</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">since start</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Phase Stepper */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-center gap-4">
+        <div className="w-full px-4 sm:px-6 lg:px-10 py-5">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
             {[1, 2, 3].map((phase) => {
               const status = getPhaseStepperStatus(phase as 1 | 2 | 3);
               const isActive = idea.phase === `Phase ${phase}`;
@@ -754,16 +842,16 @@ export function IdeaDetailPage() {
 
               return (
                 <div key={phase} className="flex items-center">
-                  <div className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
-                    isInvalidated ? 'bg-orange-100' :
-                    isActive ? 'bg-indigo-100' :
-                    isCompleted ? 'bg-green-50' :
-                    isGenerated ? 'bg-amber-50' :
-                    'bg-slate-50'
+                  <div className={`flex items-center gap-2.5 pl-2 pr-4 py-2 rounded-full border transition-all ${
+                    isInvalidated ? 'bg-orange-50 border-orange-200' :
+                    isActive && !isCompleted ? 'bg-indigo-50 border-indigo-200' :
+                    isCompleted ? 'bg-emerald-50 border-emerald-200' :
+                    isGenerated ? 'bg-amber-50 border-amber-200' :
+                    'bg-slate-50 border-slate-200'
                   }`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${
                       isInvalidated ? 'bg-orange-500 text-white' :
-                      isCompleted ? 'bg-green-500 text-white' :
+                      isCompleted ? 'bg-emerald-500 text-white' :
                       isGenerated ? 'bg-amber-500 text-white' :
                       isActive ? 'bg-indigo-500 text-white' :
                       isLocked ? 'bg-slate-300 text-slate-500' :
@@ -771,14 +859,14 @@ export function IdeaDetailPage() {
                     }`}>
                       {isCompleted ? (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                         </svg>
                       ) : isInvalidated ? (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                       ) : isLocked ? (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                       ) : (
@@ -786,23 +874,27 @@ export function IdeaDetailPage() {
                       )}
                     </div>
                     <div className="flex flex-col">
-                      <span className={`text-sm font-medium ${
+                      <span className={`text-sm font-semibold leading-tight ${
                         isInvalidated ? 'text-orange-700' :
                         isActive ? 'text-indigo-700' :
-                        isCompleted ? 'text-green-700' :
+                        isCompleted ? 'text-emerald-700' :
                         isGenerated ? 'text-amber-700' :
                         'text-slate-500'
                       }`}>
-                        Phase {phase}
+                        {phaseLabels[phase]}
                       </span>
-                      {isInvalidated && (
-                        <span className="text-xs text-orange-600">Needs Update</span>
-                      )}
+                      <span className="text-[10px] uppercase tracking-wider text-slate-400 leading-tight">
+                        {isInvalidated ? 'Needs update' :
+                         isCompleted ? 'Confirmed' :
+                         isGenerated ? 'Generated' :
+                         isLocked ? 'Locked' :
+                         'Pending'}
+                      </span>
                     </div>
                   </div>
                   {phase < 3 && (
-                    <div className={`w-12 h-0.5 mx-2 ${
-                      getPhaseStepperStatus(phase as 1 | 2 | 3) === 'confirmed' ? 'bg-green-300' :
+                    <div className={`w-6 sm:w-10 h-0.5 mx-1 ${
+                      getPhaseStepperStatus(phase as 1 | 2 | 3) === 'confirmed' ? 'bg-emerald-300' :
                       getPhaseStepperStatus(phase as 1 | 2 | 3) === 'invalidated' ? 'bg-orange-300' :
                       'bg-slate-200'
                     }`} />
@@ -815,42 +907,68 @@ export function IdeaDetailPage() {
       </div>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="w-full px-4 sm:px-6 lg:px-10 py-8">
         {/* Idea Description Card */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-2">Your Idea</h2>
-          <p className="text-slate-600">{idea.description}</p>
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+            </div>
+            <h2 className="text-base font-semibold text-slate-900">Original idea</h2>
+          </div>
+          <p className="text-sm text-slate-600 leading-relaxed">{idea.description}</p>
         </div>
 
         {/* Phase 1 Content */}
         <div className="space-y-6">
           {/* Generate Button (if Phase 1 not generated) */}
           {phase1Status === 'pending' && (
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-8 text-center">
-              <div className="text-5xl mb-4">🔮</div>
-              <h3 className="text-2xl font-bold text-white mb-2">Ready to Validate Your Idea?</h3>
-              <p className="text-white/80 mb-6 max-w-md mx-auto">
-                Generate your Phase 1 analysis including market feasibility, competitive analysis, and your critical kill assumption.
-              </p>
-              <button
-                onClick={handleGeneratePhase1}
-                disabled={generating}
-                className="btn bg-white text-indigo-600 hover:bg-slate-100 px-8 py-3 text-base font-semibold disabled:opacity-60"
-              >
-                {generating ? (
-                  <>
-                    <span className="w-5 h-5 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
-                    Generating Analysis...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Generate Phase 1 Analysis
-                  </>
-                )}
-              </button>
+            <div className="relative overflow-hidden rounded-2xl bg-slate-950 text-white border border-white/5 p-10">
+              <div
+                className="absolute inset-0 opacity-[0.12]"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
+                  backgroundSize: '40px 40px',
+                }}
+              />
+              <div className="absolute -top-16 -right-10 w-72 h-72 bg-indigo-500/30 rounded-full blur-[100px]" />
+              <div className="relative text-center max-w-xl mx-auto">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/10 border border-white/10 text-[11px] font-semibold uppercase tracking-wider text-indigo-200 mb-4">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                  Phase 1 · Discovery
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-3">
+                  Ready to validate your idea?
+                </h3>
+                <p className="text-slate-300 mb-6 leading-relaxed">
+                  Run the discovery pipeline to generate market feasibility, competitive analysis, and your critical kill assumption.
+                </p>
+                <button
+                  onClick={handleGeneratePhase1}
+                  disabled={generating}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
+                >
+                  {generating ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin" />
+                      Generating analysis…
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Generate Phase 1 analysis
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
 
@@ -858,10 +976,14 @@ export function IdeaDetailPage() {
           {hasPhase1Data && (
             <>
               {/* Clean Idea Summary */}
-              <div className="bg-white rounded-xl border border-slate-200 p-6">
+              <div className="bg-white rounded-2xl border border-slate-200 p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="text-2xl">✨</span>
-                  <h3 className="text-lg font-semibold text-slate-900">Clean Idea Summary</h3>
+                  <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-base font-semibold text-slate-900">Clean idea summary</h3>
                   {canEditSection() && (
                     <button
                       onClick={() => setEditingSection('cleanSummary')}
@@ -874,19 +996,25 @@ export function IdeaDetailPage() {
                     </button>
                   )}
                 </div>
-                <p className="text-slate-600 leading-relaxed">{idea.phase1Data?.cleanSummary}</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{idea.phase1Data?.cleanSummary}</p>
               </div>
 
               {/* Market Feasibility */}
               {idea.phase1Data?.marketFeasibility && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">📊</span>
-                    <h3 className="text-lg font-semibold text-slate-900">Market Feasibility</h3>
-                    <span className={`ml-auto px-3 py-1 rounded-full text-xs font-semibold border ${
+                <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10" />
+                        <line x1="12" y1="20" x2="12" y2="4" />
+                        <line x1="6" y1="20" x2="6" y2="14" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-semibold text-slate-900">Market feasibility</h3>
+                    <span className={`ml-auto px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider border ${
                       getTimingColor(idea.phase1Data.marketFeasibility.timing)
                     }`}>
-                      Timing: {idea.phase1Data.marketFeasibility.timing}
+                      Timing · {idea.phase1Data.marketFeasibility.timing}
                     </span>
                     {canEditSection() && (
                       <button
@@ -901,28 +1029,28 @@ export function IdeaDetailPage() {
                     )}
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-500 mb-1">Market Size</h4>
-                      <p className="text-lg font-semibold text-slate-900">
+                  <div className="grid md:grid-cols-2 gap-4 mb-5">
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Market size</h4>
+                      <p className="text-base font-semibold text-slate-900 leading-snug">
                         {idea.phase1Data.marketFeasibility.marketSize}
                       </p>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-500 mb-1">Growth Trajectory</h4>
-                      <p className="text-lg font-semibold text-slate-900">
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Growth trajectory</h4>
+                      <p className="text-base font-semibold text-slate-900 leading-snug">
                         {idea.phase1Data.marketFeasibility.growthTrajectory}
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-6">
-                    <h4 className="text-sm font-medium text-slate-500 mb-3">Key Market Trends</h4>
-                    <div className="flex flex-wrap gap-2">
+                  <div>
+                    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2.5">Key market trends</h4>
+                    <div className="flex flex-wrap gap-1.5">
                       {idea.phase1Data.marketFeasibility.keyTrends.map((trend, index) => (
                         <span
                           key={index}
-                          className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-full text-sm"
+                          className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-medium border border-slate-200"
                         >
                           {trend}
                         </span>
@@ -934,10 +1062,17 @@ export function IdeaDetailPage() {
 
               {/* Competitive Analysis */}
               {idea.phase1Data?.competitiveAnalysis && idea.phase1Data.competitiveAnalysis.length > 0 && (
-                <div className="bg-white rounded-xl border border-slate-200 p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">🎯</span>
-                    <h3 className="text-lg font-semibold text-slate-900">Competitive Analysis</h3>
+                <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                  <div className="flex items-center gap-2 mb-5">
+                    <div className="w-8 h-8 rounded-lg bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <circle cx="12" cy="12" r="6" />
+                        <circle cx="12" cy="12" r="2" />
+                      </svg>
+                    </div>
+                    <h3 className="text-base font-semibold text-slate-900">Competitive analysis</h3>
+                    <span className="ml-2 text-xs text-slate-400 font-mono">{idea.phase1Data.competitiveAnalysis.length} competitors</span>
                     {canEditSection() && (
                       <button
                         onClick={() => setEditingSection('competitiveAnalysis')}
@@ -951,21 +1086,26 @@ export function IdeaDetailPage() {
                     )}
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-3">
                     {idea.phase1Data.competitiveAnalysis.map((competitor, index) => (
                       <div
                         key={index}
-                        className="bg-slate-50 rounded-lg p-4 border border-slate-100"
+                        className="bg-slate-50 rounded-xl p-4 border border-slate-100"
                       >
-                        <h4 className="font-semibold text-slate-900 mb-2">{competitor.name}</h4>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 uppercase mb-1">How They Differ</p>
-                            <p className="text-sm text-slate-600">{competitor.difference}</p>
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center text-slate-700 text-xs font-semibold">
+                            {competitor.name.charAt(0).toUpperCase()}
                           </div>
+                          <h4 className="font-semibold text-slate-900 text-sm">{competitor.name}</h4>
+                        </div>
+                        <div className="space-y-3">
                           <div>
-                            <p className="text-xs font-medium text-green-600 uppercase mb-1">Your Advantage</p>
-                            <p className="text-sm text-slate-600">{competitor.advantage}</p>
+                            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">How they differ</p>
+                            <p className="text-xs text-slate-600 leading-relaxed">{competitor.difference}</p>
+                          </div>
+                          <div className="pt-2 border-t border-slate-200">
+                            <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider mb-1">Your advantage</p>
+                            <p className="text-xs text-slate-700 leading-relaxed">{competitor.advantage}</p>
                           </div>
                         </div>
                       </div>
@@ -974,68 +1114,88 @@ export function IdeaDetailPage() {
                 </div>
               )}
 
-              {/* Kill Assumption - Prominently Displayed */}
+              {/* Kill Assumption */}
               {idea.phase1Data?.killAssumption && (
-                <div className="bg-gradient-to-r from-red-500 to-orange-500 rounded-xl p-6 text-white">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">⚠️</span>
-                    <h3 className="text-lg font-bold">Kill Assumption</h3>
-                    <span className="ml-auto px-3 py-1 bg-white/20 rounded-full text-xs font-semibold">
-                      Critical to Validate
-                    </span>
-                    {canEditSection() && (
-                      <button
-                        onClick={() => setEditingSection('killAssumption')}
-                        className="p-2 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors"
-                        title="Edit this section"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <div className="relative overflow-hidden rounded-2xl bg-slate-950 text-white border border-white/5 p-6">
+                  <div className="absolute -top-10 -right-10 w-64 h-64 bg-rose-500/30 rounded-full blur-[90px]" />
+                  <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/20 rounded-full blur-[80px]" />
+                  <div className="relative">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 rounded-lg bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-300">
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                          <line x1="12" y1="9" x2="12" y2="13" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
                         </svg>
-                      </button>
+                      </div>
+                      <h3 className="text-base font-semibold text-white">Kill assumption</h3>
+                      <span className="ml-auto px-2.5 py-1 bg-rose-500/20 border border-rose-500/30 rounded-md text-[11px] font-semibold uppercase tracking-wider text-rose-200">
+                        Critical to validate
+                      </span>
+                      {canEditSection() && (
+                        <button
+                          onClick={() => setEditingSection('killAssumption')}
+                          className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                          title="Edit this section"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+
+                    <p className="text-base text-slate-100 leading-relaxed mb-4">{idea.phase1Data.killAssumption}</p>
+
+                    {idea.phase1Data.killAssumptionTestGuidance && (
+                      <div className="bg-white/5 backdrop-blur rounded-xl p-4 border border-white/10">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-300 mb-1.5">How to test</p>
+                        <p className="text-sm text-slate-200 leading-relaxed">{idea.phase1Data.killAssumptionTestGuidance}</p>
+                      </div>
                     )}
                   </div>
-
-                  <p className="text-lg leading-relaxed mb-4">{idea.phase1Data.killAssumption}</p>
-
-                  {idea.phase1Data.killAssumptionTestGuidance && (
-                    <div className="bg-white/10 rounded-lg p-4">
-                      <p className="text-sm font-semibold mb-2">How to Test:</p>
-                      <p className="text-sm text-white/90">{idea.phase1Data.killAssumptionTestGuidance}</p>
-                    </div>
-                  )}
                 </div>
               )}
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
-                <div className="text-sm text-slate-500">
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                   {idea.phase1Data?.generatedAt && (
-                    <span>Generated: {new Date(idea.phase1Data.generatedAt).toLocaleDateString()}</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                      Generated {new Date(idea.phase1Data.generatedAt).toLocaleDateString()}
+                    </span>
                   )}
                   {idea.phase1Data?.confirmedAt && (
-                    <span className="ml-4 text-green-600 font-medium">
-                      Confirmed: {new Date(idea.phase1Data.confirmedAt).toLocaleDateString()}
+                    <span className="inline-flex items-center gap-1.5 text-emerald-600 font-medium">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      Confirmed {new Date(idea.phase1Data.confirmedAt).toLocaleDateString()}
                     </span>
                   )}
                 </div>
 
-                <div className="flex gap-3">
-                  {/* PDF Download Button - always visible when Phase 1 data exists */}
+                <div className="flex flex-wrap gap-2">
                   <button
                     onClick={handleDownloadPDF}
                     disabled={downloading}
-                    className="btn btn-secondary"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:border-slate-300 hover:text-slate-900 transition-colors disabled:opacity-60"
                   >
                     {downloading ? (
                       <>
                         <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                        Downloading...
+                        Downloading…
                       </>
                     ) : (
                       <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
                         </svg>
                         Download PDF
                       </>
@@ -1047,24 +1207,24 @@ export function IdeaDetailPage() {
                       <button
                         onClick={handleGeneratePhase1}
                         disabled={generating}
-                        className="btn btn-secondary"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:border-slate-300 hover:text-slate-900 transition-colors disabled:opacity-60"
                       >
-                        {generating ? 'Regenerating...' : 'Regenerate'}
+                        {generating ? 'Regenerating…' : 'Regenerate'}
                       </button>
                       <button
                         onClick={handleConfirmPhase1}
                         disabled={confirming}
-                        className="btn btn-primary"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors disabled:opacity-60"
                       >
                         {confirming ? (
                           <>
                             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            Confirming...
+                            Confirming…
                           </>
                         ) : (
                           <>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                              <polyline points="20 6 9 17 4 12" />
                             </svg>
                             Confirm Phase 1
                           </>
@@ -1074,11 +1234,11 @@ export function IdeaDetailPage() {
                   )}
 
                   {phase1Status === 'confirmed' && (
-                    <div className="flex items-center gap-2 text-green-600 font-medium">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-semibold">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <polyline points="20 6 9 17 4 12" />
                       </svg>
-                      Phase 1 Confirmed
+                      Phase 1 confirmed
                     </div>
                   )}
                 </div>
@@ -1092,121 +1252,177 @@ export function IdeaDetailPage() {
             const hasPhase2Data = idea.phase2Data && idea.phase2Data.businessModel;
 
             return (
-              <div className="mt-8 pt-8 border-t border-slate-200">
-                <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                  <span className="text-2xl">📈</span>
-                  Phase 2: Business Model Development
-                </h2>
+              <div className="mt-10 pt-8 border-t border-slate-200">
+                <div className="flex items-center gap-2.5 mb-6">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center text-white shadow-sm shadow-violet-500/30">
+                    <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 3v18h18" />
+                      <path d="M18.4 8.64L13.7 13.34 10.7 10.34 6 15.04" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold tracking-tight text-slate-900 leading-tight">Phase 2 · Business model</h2>
+                    <p className="text-xs text-slate-500">Canvas, go-to-market strategy & risks</p>
+                  </div>
+                </div>
 
                 {/* Phase 2 Locked State */}
                 {phase2Status === 'locked' && (
-                  <div className="bg-slate-100 rounded-xl p-8 text-center">
-                    <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center">
+                    <div className="w-14 h-14 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-700 mb-2">Phase 2 is Locked</h3>
-                    <p className="text-slate-500 max-w-md mx-auto">
-                      Complete and confirm Phase 1 to unlock Phase 2: Business Model Development
+                    <h3 className="text-base font-semibold text-slate-700 mb-1">Phase 2 is locked</h3>
+                    <p className="text-sm text-slate-500 max-w-md mx-auto">
+                      Complete and confirm Phase 1 to unlock business model development.
                     </p>
                   </div>
                 )}
 
                 {/* Phase 2 Invalidated State */}
                 {phase2Status === 'invalidated' && (
-                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-8 text-center">
-                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
+                  <div className="bg-orange-50 border border-orange-200 rounded-2xl p-8">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-orange-100 border border-orange-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                          <line x1="12" y1="9" x2="12" y2="13" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-base font-semibold text-orange-800 mb-1">Phase 2 needs update</h3>
+                        <p className="text-sm text-orange-700 mb-4">
+                          Phase 1 has been modified. Regenerate Phase 2 to reflect the latest changes.
+                        </p>
+                        <button
+                          onClick={handleGeneratePhase2}
+                          disabled={generatingPhase2}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-60"
+                        >
+                          {generatingPhase2 ? (
+                            <>
+                              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Regenerating…
+                            </>
+                          ) : (
+                            'Regenerate Phase 2'
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <h3 className="text-lg font-semibold text-orange-700 mb-2">Phase 2 Needs Update</h3>
-                    <p className="text-orange-600 max-w-md mx-auto mb-4">
-                      Phase 1 has been modified. Regenerate Phase 2 to reflect the latest changes.
-                    </p>
-                    <button
-                      onClick={handleGeneratePhase2}
-                      disabled={generatingPhase2}
-                      className="btn bg-orange-500 text-white hover:bg-orange-600"
-                    >
-                      {generatingPhase2 ? (
-                        <>
-                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Regenerating...
-                        </>
-                      ) : (
-                        'Regenerate Phase 2'
-                      )}
-                    </button>
                   </div>
                 )}
 
                 {/* Phase 2 Pending - Generate Button */}
                 {phase2Status === 'pending' && !hasPhase2Data && (
-                  <div className="bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl p-8 text-center">
-                    <div className="text-5xl mb-4">💼</div>
-                    <h3 className="text-2xl font-bold text-white mb-2">Ready to Build Your Business Model?</h3>
-                    <p className="text-white/80 mb-6 max-w-md mx-auto">
-                      Generate your comprehensive business model, go-to-market strategy, and risk analysis.
-                    </p>
-                    <button
-                      onClick={handleGeneratePhase2}
-                      disabled={generatingPhase2}
-                      className="btn bg-white text-blue-600 hover:bg-slate-100 px-8 py-3 text-base font-semibold disabled:opacity-60"
-                    >
-                      {generatingPhase2 ? (
-                        <>
-                          <span className="w-5 h-5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
-                          Generating Business Model...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
-                          Generate Phase 2 Analysis
-                        </>
-                      )}
-                    </button>
+                  <div className="relative overflow-hidden rounded-2xl bg-slate-950 text-white border border-white/5 p-10">
+                    <div
+                      className="absolute inset-0 opacity-[0.12]"
+                      style={{
+                        backgroundImage:
+                          'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
+                        backgroundSize: '40px 40px',
+                      }}
+                    />
+                    <div className="absolute -top-16 -right-10 w-72 h-72 bg-violet-500/30 rounded-full blur-[100px]" />
+                    <div className="relative text-center max-w-xl mx-auto">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/10 border border-white/10 text-[11px] font-semibold uppercase tracking-wider text-violet-200 mb-4">
+                        <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+                        Phase 2 · Business model
+                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-3">
+                        Ready to build your business model?
+                      </h3>
+                      <p className="text-slate-300 mb-6 leading-relaxed">
+                        Generate your business model canvas, go-to-market strategy, and structural & operational risk analysis.
+                      </p>
+                      <button
+                        onClick={handleGeneratePhase2}
+                        disabled={generatingPhase2}
+                        className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-violet-500/20"
+                      >
+                        {generatingPhase2 ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin" />
+                            Generating business model…
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            Generate Phase 2 analysis
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 )}
 
                 {/* Phase 2 Generated Content */}
                 {hasPhase2Data && (
                   <div className="space-y-6">
-                    {/* Business Model */}
+                    {/* Business Model Canvas */}
                     {idea.phase2Data?.businessModel && (
-                      <div className="bg-white rounded-xl border border-slate-200 p-6">
-                        <div className="flex items-center gap-2 mb-6">
-                          <span className="text-2xl">🎯</span>
-                          <h3 className="text-lg font-semibold text-slate-900">Business Model Canvas</h3>
+                      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                        <div className="flex items-center gap-2 mb-5">
+                          <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="3" width="7" height="7" rx="1" />
+                              <rect x="14" y="3" width="7" height="7" rx="1" />
+                              <rect x="3" y="14" width="7" height="7" rx="1" />
+                              <rect x="14" y="14" width="7" height="7" rx="1" />
+                            </svg>
+                          </div>
+                          <h3 className="text-base font-semibold text-slate-900">Business model canvas</h3>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-6">
-                          <div className="bg-blue-50 rounded-lg p-4">
-                            <h4 className="text-sm font-semibold text-blue-700 mb-2">Customer Segments</h4>
-                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.customerSegments}</p>
+                        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+                          <div className="rounded-xl p-4 bg-blue-50 border border-blue-100">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <div className="w-1 h-1 rounded-full bg-blue-500" />
+                              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-blue-700">Customer segments</h4>
+                            </div>
+                            <p className="text-slate-700 text-sm leading-relaxed">{idea.phase2Data.businessModel.customerSegments}</p>
                           </div>
-                          <div className="bg-purple-50 rounded-lg p-4">
-                            <h4 className="text-sm font-semibold text-purple-700 mb-2">Value Proposition</h4>
-                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.valueProposition}</p>
+                          <div className="rounded-xl p-4 bg-violet-50 border border-violet-100">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <div className="w-1 h-1 rounded-full bg-violet-500" />
+                              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-violet-700">Value proposition</h4>
+                            </div>
+                            <p className="text-slate-700 text-sm leading-relaxed">{idea.phase2Data.businessModel.valueProposition}</p>
                           </div>
-                          <div className="bg-green-50 rounded-lg p-4">
-                            <h4 className="text-sm font-semibold text-green-700 mb-2">Revenue Streams</h4>
-                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.revenueStreams}</p>
+                          <div className="rounded-xl p-4 bg-emerald-50 border border-emerald-100">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <div className="w-1 h-1 rounded-full bg-emerald-500" />
+                              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Revenue streams</h4>
+                            </div>
+                            <p className="text-slate-700 text-sm leading-relaxed">{idea.phase2Data.businessModel.revenueStreams}</p>
                           </div>
-                          <div className="bg-amber-50 rounded-lg p-4">
-                            <h4 className="text-sm font-semibold text-amber-700 mb-2">Cost Structure</h4>
-                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.costStructure}</p>
+                          <div className="rounded-xl p-4 bg-amber-50 border border-amber-100">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <div className="w-1 h-1 rounded-full bg-amber-500" />
+                              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">Cost structure</h4>
+                            </div>
+                            <p className="text-slate-700 text-sm leading-relaxed">{idea.phase2Data.businessModel.costStructure}</p>
                           </div>
-                          <div className="bg-cyan-50 rounded-lg p-4">
-                            <h4 className="text-sm font-semibold text-cyan-700 mb-2">Key Partnerships</h4>
-                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.keyPartnerships}</p>
+                          <div className="rounded-xl p-4 bg-cyan-50 border border-cyan-100">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <div className="w-1 h-1 rounded-full bg-cyan-500" />
+                              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-cyan-700">Key partnerships</h4>
+                            </div>
+                            <p className="text-slate-700 text-sm leading-relaxed">{idea.phase2Data.businessModel.keyPartnerships}</p>
                           </div>
-                          <div className="bg-indigo-50 rounded-lg p-4">
-                            <h4 className="text-sm font-semibold text-indigo-700 mb-2">Key Resources</h4>
-                            <p className="text-slate-700 text-sm">{idea.phase2Data.businessModel.keyResources}</p>
+                          <div className="rounded-xl p-4 bg-indigo-50 border border-indigo-100">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <div className="w-1 h-1 rounded-full bg-indigo-500" />
+                              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700">Key resources</h4>
+                            </div>
+                            <p className="text-slate-700 text-sm leading-relaxed">{idea.phase2Data.businessModel.keyResources}</p>
                           </div>
                         </div>
                       </div>
@@ -1214,121 +1430,181 @@ export function IdeaDetailPage() {
 
                     {/* Strategy */}
                     {idea.phase2Data?.strategy && (
-                      <div className="bg-white rounded-xl border border-slate-200 p-6">
-                        <div className="flex items-center gap-2 mb-6">
-                          <span className="text-2xl">🚀</span>
-                          <h3 className="text-lg font-semibold text-slate-900">Go-To-Market Strategy</h3>
+                      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                        <div className="flex items-center gap-2 mb-5">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                              <polyline points="17 6 23 6 23 12" />
+                            </svg>
+                          </div>
+                          <h3 className="text-base font-semibold text-slate-900">Go-to-market strategy</h3>
                         </div>
 
-                        <div className="space-y-4">
-                          <div className="bg-slate-50 rounded-lg p-4">
-                            <h4 className="text-sm font-semibold text-slate-700 mb-2">Customer Acquisition</h4>
-                            <p className="text-slate-600 text-sm">{idea.phase2Data.strategy.customerAcquisition}</p>
+                        <div className="grid md:grid-cols-3 gap-3 mb-4">
+                          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Customer acquisition</h4>
+                            <p className="text-slate-700 text-sm leading-relaxed">{idea.phase2Data.strategy.customerAcquisition}</p>
                           </div>
-                          <div className="bg-slate-50 rounded-lg p-4">
-                            <h4 className="text-sm font-semibold text-slate-700 mb-2">Pricing Strategy</h4>
-                            <p className="text-slate-600 text-sm">{idea.phase2Data.strategy.pricingStrategy}</p>
+                          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Pricing strategy</h4>
+                            <p className="text-slate-700 text-sm leading-relaxed">{idea.phase2Data.strategy.pricingStrategy}</p>
                           </div>
-                          <div className="bg-slate-50 rounded-lg p-4">
-                            <h4 className="text-sm font-semibold text-slate-700 mb-2">Growth Strategy</h4>
-                            <p className="text-slate-600 text-sm">{idea.phase2Data.strategy.growthStrategy}</p>
+                          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Growth strategy</h4>
+                            <p className="text-slate-700 text-sm leading-relaxed">{idea.phase2Data.strategy.growthStrategy}</p>
                           </div>
-                          {idea.phase2Data.strategy.keyMilestones && idea.phase2Data.strategy.keyMilestones.length > 0 && (
-                            <div className="bg-emerald-50 rounded-lg p-4">
-                              <h4 className="text-sm font-semibold text-emerald-700 mb-3">Key Milestones</h4>
-                              <div className="space-y-2">
-                                {idea.phase2Data.strategy.keyMilestones.map((milestone, idx) => (
-                                  <div key={idx} className="flex items-center gap-2">
-                                    <span className="w-6 h-6 bg-emerald-200 text-emerald-700 rounded-full flex items-center justify-center text-xs font-bold">
-                                      {idx + 1}
-                                    </span>
-                                    <span className="text-slate-700 text-sm">{milestone}</span>
-                                  </div>
-                                ))}
+                        </div>
+
+                        {idea.phase2Data.strategy.keyMilestones && idea.phase2Data.strategy.keyMilestones.length > 0 && (
+                          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-100">
+                            <div className="flex items-center gap-1.5 mb-3">
+                              <svg className="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M4 11a9 9 0 019 9" />
+                                <path d="M4 4a16 16 0 0116 16" />
+                                <circle cx="5" cy="19" r="1" />
+                              </svg>
+                              <h4 className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Key milestones</h4>
+                            </div>
+                            <div className="space-y-2">
+                              {idea.phase2Data.strategy.keyMilestones.map((milestone, idx) => (
+                                <div key={idx} className="flex items-start gap-2.5">
+                                  <span className="w-5 h-5 flex-shrink-0 mt-0.5 bg-white border border-emerald-300 text-emerald-700 rounded-full flex items-center justify-center text-[10px] font-bold">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-slate-700 text-sm leading-relaxed">{milestone}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Risks grid */}
+                    <div className="grid lg:grid-cols-2 gap-4">
+                      {/* Structural Risks */}
+                      {idea.phase2Data?.structuralRisks && idea.phase2Data.structuralRisks.length > 0 && (
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                              </svg>
+                            </div>
+                            <h3 className="text-base font-semibold text-slate-900">Structural risks</h3>
+                            <span className="ml-auto text-xs text-slate-400 font-mono">{idea.phase2Data.structuralRisks.length}</span>
+                          </div>
+
+                          <div className="space-y-2.5">
+                            {idea.phase2Data.structuralRisks.map((risk, idx) => (
+                              <div key={idx} className="bg-rose-50/50 rounded-xl p-3.5 border border-rose-100">
+                                <h4 className="text-sm font-semibold text-rose-700 mb-1.5">{risk.name}</h4>
+                                <p className="text-slate-700 text-xs mb-2 leading-relaxed">{risk.description}</p>
+                                <p className="text-rose-600 text-xs italic leading-relaxed">{risk.implications}</p>
                               </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Operational Risks */}
+                      {idea.phase2Data?.operationalRisks && idea.phase2Data.operationalRisks.length > 0 && (
+                        <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600">
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="3" />
+                                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                              </svg>
                             </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                            <h3 className="text-base font-semibold text-slate-900">Operational risks</h3>
+                            <span className="ml-auto text-xs text-slate-400 font-mono">{idea.phase2Data.operationalRisks.length}</span>
+                          </div>
 
-                    {/* Structural Risks */}
-                    {idea.phase2Data?.structuralRisks && idea.phase2Data.structuralRisks.length > 0 && (
-                      <div className="bg-white rounded-xl border border-slate-200 p-6">
-                        <div className="flex items-center gap-2 mb-6">
-                          <span className="text-2xl">⚡</span>
-                          <h3 className="text-lg font-semibold text-slate-900">Structural Risks</h3>
+                          <div className="space-y-2.5">
+                            {idea.phase2Data.operationalRisks.map((risk, idx) => (
+                              <div key={idx} className="bg-amber-50/50 rounded-xl p-3.5 border border-amber-100">
+                                <h4 className="text-sm font-semibold text-amber-700 mb-1.5">{risk.name}</h4>
+                                <p className="text-slate-700 text-xs mb-2 leading-relaxed">{risk.description}</p>
+                                <p className="text-amber-700 text-xs italic leading-relaxed">{risk.implications}</p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-
-                        <div className="space-y-4">
-                          {idea.phase2Data.structuralRisks.map((risk, idx) => (
-                            <div key={idx} className="bg-red-50 rounded-lg p-4 border-l-4 border-red-400">
-                              <h4 className="text-sm font-semibold text-red-700 mb-2">{risk.name}</h4>
-                              <p className="text-slate-700 text-sm mb-2">{risk.description}</p>
-                              <p className="text-slate-500 text-xs italic">{risk.implications}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Operational Risks */}
-                    {idea.phase2Data?.operationalRisks && idea.phase2Data.operationalRisks.length > 0 && (
-                      <div className="bg-white rounded-xl border border-slate-200 p-6">
-                        <div className="flex items-center gap-2 mb-6">
-                          <span className="text-2xl">⚙️</span>
-                          <h3 className="text-lg font-semibold text-slate-900">Operational Risks</h3>
-                        </div>
-
-                        <div className="space-y-4">
-                          {idea.phase2Data.operationalRisks.map((risk, idx) => (
-                            <div key={idx} className="bg-amber-50 rounded-lg p-4 border-l-4 border-amber-400">
-                              <h4 className="text-sm font-semibold text-amber-700 mb-2">{risk.name}</h4>
-                              <p className="text-slate-700 text-sm mb-2">{risk.description}</p>
-                              <p className="text-slate-500 text-xs italic">{risk.implications}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                     {/* Phase 2 Action Buttons */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
-                      <div className="text-sm text-slate-500">
+                    <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                         {idea.phase2Data?.generatedAt && (
-                          <span>Generated: {new Date(idea.phase2Data.generatedAt).toLocaleDateString()}</span>
+                          <span className="inline-flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10" />
+                              <polyline points="12 6 12 12 16 14" />
+                            </svg>
+                            Generated {new Date(idea.phase2Data.generatedAt).toLocaleDateString()}
+                          </span>
                         )}
                         {idea.phase2Data?.confirmedAt && (
-                          <span className="ml-4 text-green-600 font-medium">
-                            Confirmed: {new Date(idea.phase2Data.confirmedAt).toLocaleDateString()}
+                          <span className="inline-flex items-center gap-1.5 text-emerald-600 font-medium">
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            Confirmed {new Date(idea.phase2Data.confirmedAt).toLocaleDateString()}
                           </span>
                         )}
                       </div>
 
-                      <div className="flex gap-3">
+                      <div className="flex flex-wrap gap-2">
+                        {phase2Status === 'confirmed' && (
+                          <button
+                            onClick={handleDownloadPhase2PDF}
+                            disabled={downloadingPhase2}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:border-slate-300 hover:text-slate-900 transition-colors disabled:opacity-60"
+                          >
+                            {downloadingPhase2 ? (
+                              <>
+                                <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                                Generating…
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                  <polyline points="7 10 12 15 17 10" />
+                                  <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                Download PDF
+                              </>
+                            )}
+                          </button>
+                        )}
+
                         {phase2Status === 'generated' && (
                           <>
                             <button
                               onClick={handleGeneratePhase2}
                               disabled={generatingPhase2}
-                              className="btn btn-secondary"
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:border-slate-300 hover:text-slate-900 transition-colors disabled:opacity-60"
                             >
-                              {generatingPhase2 ? 'Regenerating...' : 'Regenerate'}
+                              {generatingPhase2 ? 'Regenerating…' : 'Regenerate'}
                             </button>
                             <button
                               onClick={handleConfirmPhase2}
                               disabled={confirmingPhase2}
-                              className="btn btn-primary"
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors disabled:opacity-60"
                             >
                               {confirmingPhase2 ? (
                                 <>
                                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                  Confirming...
+                                  Confirming…
                                 </>
                               ) : (
                                 <>
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <polyline points="20 6 9 17 4 12" />
                                   </svg>
                                   Confirm Phase 2
                                 </>
@@ -1338,32 +1614,11 @@ export function IdeaDetailPage() {
                         )}
 
                         {phase2Status === 'confirmed' && (
-                          <div className="flex items-center gap-4">
-                            <button
-                              onClick={handleDownloadPhase2PDF}
-                              disabled={downloadingPhase2}
-                              className="btn btn-secondary"
-                            >
-                              {downloadingPhase2 ? (
-                                <>
-                                  <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                  Generating...
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                  </svg>
-                                  Download PDF
-                                </>
-                              )}
-                            </button>
-                            <div className="flex items-center gap-2 text-green-600 font-medium">
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              Phase 2 Confirmed
-                            </div>
+                          <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-semibold">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            Phase 2 confirmed
                           </div>
                         )}
                       </div>
@@ -1380,83 +1635,116 @@ export function IdeaDetailPage() {
             const hasPhase3Data = idea.phase3Data && idea.phase3Data.pitchDeck;
 
             return (
-              <div className="mt-8 pt-8 border-t border-slate-200">
-                <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                  <span className="text-2xl">🎤</span>
-                  Phase 3: Investor Pitch Deck
-                </h2>
+              <div className="mt-10 pt-8 border-t border-slate-200">
+                <div className="flex items-center gap-2.5 mb-6">
+                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-fuchsia-500 to-pink-600 flex items-center justify-center text-white shadow-sm shadow-fuchsia-500/30">
+                    <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="3" width="20" height="14" rx="2" />
+                      <line x1="8" y1="21" x2="16" y2="21" />
+                      <line x1="12" y1="17" x2="12" y2="21" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold tracking-tight text-slate-900 leading-tight">Phase 3 · Investor pitch deck</h2>
+                    <p className="text-xs text-slate-500">10-slide pitch deck ready for investors</p>
+                  </div>
+                </div>
 
                 {/* Phase 3 Locked State */}
                 {phase3Status === 'locked' && (
-                  <div className="bg-slate-100 rounded-xl p-8 text-center">
-                    <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-10 text-center">
+                    <div className="w-14 h-14 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0110 0v4" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-700 mb-2">Phase 3 is Locked</h3>
-                    <p className="text-slate-500 max-w-md mx-auto">
-                      Complete and confirm Phase 2 to unlock Phase 3: Investor Pitch Deck
+                    <h3 className="text-base font-semibold text-slate-700 mb-1">Phase 3 is locked</h3>
+                    <p className="text-sm text-slate-500 max-w-md mx-auto">
+                      Complete and confirm Phase 2 to unlock the investor pitch deck.
                     </p>
                   </div>
                 )}
 
                 {/* Phase 3 Invalidated State */}
                 {phase3Status === 'invalidated' && (
-                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-8 text-center">
-                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
+                  <div className="bg-orange-50 border border-orange-200 rounded-2xl p-8">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-orange-100 border border-orange-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                          <line x1="12" y1="9" x2="12" y2="13" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-base font-semibold text-orange-800 mb-1">Phase 3 needs update</h3>
+                        <p className="text-sm text-orange-700 mb-4">
+                          Phase 2 has been modified. Regenerate Phase 3 to reflect the latest changes.
+                        </p>
+                        <button
+                          onClick={handleGeneratePhase3}
+                          disabled={generatingPhase3}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-60"
+                        >
+                          {generatingPhase3 ? (
+                            <>
+                              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Regenerating…
+                            </>
+                          ) : (
+                            'Regenerate Phase 3'
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <h3 className="text-lg font-semibold text-orange-700 mb-2">Phase 3 Needs Update</h3>
-                    <p className="text-orange-600 max-w-md mx-auto mb-4">
-                      Phase 2 has been modified. Regenerate Phase 3 to reflect the latest changes.
-                    </p>
-                    <button
-                      onClick={handleGeneratePhase3}
-                      disabled={generatingPhase3}
-                      className="btn bg-orange-500 text-white hover:bg-orange-600"
-                    >
-                      {generatingPhase3 ? (
-                        <>
-                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Regenerating...
-                        </>
-                      ) : (
-                        'Regenerate Phase 3'
-                      )}
-                    </button>
                   </div>
                 )}
 
                 {/* Phase 3 Pending - Generate Button */}
                 {phase3Status === 'pending' && !hasPhase3Data && (
-                  <div className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl p-8 text-center">
-                    <div className="text-5xl mb-4">🎯</div>
-                    <h3 className="text-2xl font-bold text-white mb-2">Ready to Create Your Pitch Deck?</h3>
-                    <p className="text-white/80 mb-6 max-w-md mx-auto">
-                      Generate a professional 10-slide investor pitch deck based on your validated idea and business model.
-                    </p>
-                    <button
-                      onClick={handleGeneratePhase3}
-                      disabled={generatingPhase3}
-                      className="btn bg-white text-purple-600 hover:bg-slate-100 px-8 py-3 text-base font-semibold disabled:opacity-60"
-                    >
-                      {generatingPhase3 ? (
-                        <>
-                          <span className="w-5 h-5 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
-                          Generating Pitch Deck...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
-                          Generate Phase 3 Pitch Deck
-                        </>
-                      )}
-                    </button>
+                  <div className="relative overflow-hidden rounded-2xl bg-slate-950 text-white border border-white/5 p-10">
+                    <div
+                      className="absolute inset-0 opacity-[0.12]"
+                      style={{
+                        backgroundImage:
+                          'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
+                        backgroundSize: '40px 40px',
+                      }}
+                    />
+                    <div className="absolute -top-16 -right-10 w-72 h-72 bg-fuchsia-500/30 rounded-full blur-[100px]" />
+                    <div className="absolute bottom-0 left-10 w-56 h-56 bg-pink-500/20 rounded-full blur-[90px]" />
+                    <div className="relative text-center max-w-xl mx-auto">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/10 border border-white/10 text-[11px] font-semibold uppercase tracking-wider text-fuchsia-200 mb-4">
+                        <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400 animate-pulse" />
+                        Phase 3 · Pitch deck
+                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-semibold tracking-tight mb-3">
+                        Ready to create your pitch deck?
+                      </h3>
+                      <p className="text-slate-300 mb-6 leading-relaxed">
+                        Generate a 10-slide investor-ready pitch deck built on your validated idea and business model.
+                      </p>
+                      <button
+                        onClick={handleGeneratePhase3}
+                        disabled={generatingPhase3}
+                        className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-slate-900 text-sm font-semibold hover:bg-slate-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-fuchsia-500/20"
+                      >
+                        {generatingPhase3 ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin" />
+                            Generating pitch deck…
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            Generate Phase 3 pitch deck
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1464,45 +1752,58 @@ export function IdeaDetailPage() {
                 {hasPhase3Data && (
                   <div className="space-y-6">
                     {/* Pitch Deck Slides */}
-                    <div className="bg-white rounded-xl border border-slate-200 p-6">
-                      <div className="flex items-center gap-2 mb-6">
-                        <span className="text-2xl">📊</span>
-                        <h3 className="text-lg font-semibold text-slate-900">Pitch Deck (10 Slides)</h3>
+                    <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                      <div className="flex items-center gap-2 mb-5">
+                        <div className="w-8 h-8 rounded-lg bg-fuchsia-50 border border-fuchsia-100 flex items-center justify-center text-fuchsia-600">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <line x1="9" y1="9" x2="15" y2="9" />
+                            <line x1="9" y1="13" x2="15" y2="13" />
+                            <line x1="9" y1="17" x2="13" y2="17" />
+                          </svg>
+                        </div>
+                        <h3 className="text-base font-semibold text-slate-900">Pitch deck</h3>
+                        <span className="ml-2 text-xs text-slate-400 font-mono">10 slides</span>
                       </div>
 
-                      <div className="grid md:grid-cols-2 gap-4">
+                      <div className="grid md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
                         {idea.phase3Data?.pitchDeck && Object.entries(idea.phase3Data.pitchDeck).map(([key, slide]) => {
-                          const slideColors: Record<string, string> = {
-                            titleSlide: 'bg-indigo-50 border-indigo-200',
-                            problemSlide: 'bg-red-50 border-red-200',
-                            solutionSlide: 'bg-green-50 border-green-200',
-                            marketOpportunitySlide: 'bg-blue-50 border-blue-200',
-                            businessModelSlide: 'bg-purple-50 border-purple-200',
-                            tractionSlide: 'bg-emerald-50 border-emerald-200',
-                            competitionSlide: 'bg-orange-50 border-orange-200',
-                            teamSlide: 'bg-cyan-50 border-cyan-200',
-                            financialsSlide: 'bg-amber-50 border-amber-200',
-                            askSlide: 'bg-pink-50 border-pink-200',
+                          const slideAccents: Record<string, { dot: string; ring: string }> = {
+                            titleSlide: { dot: 'bg-indigo-500', ring: 'hover:ring-indigo-200' },
+                            problemSlide: { dot: 'bg-rose-500', ring: 'hover:ring-rose-200' },
+                            solutionSlide: { dot: 'bg-emerald-500', ring: 'hover:ring-emerald-200' },
+                            marketOpportunitySlide: { dot: 'bg-blue-500', ring: 'hover:ring-blue-200' },
+                            businessModelSlide: { dot: 'bg-violet-500', ring: 'hover:ring-violet-200' },
+                            tractionSlide: { dot: 'bg-teal-500', ring: 'hover:ring-teal-200' },
+                            competitionSlide: { dot: 'bg-orange-500', ring: 'hover:ring-orange-200' },
+                            teamSlide: { dot: 'bg-cyan-500', ring: 'hover:ring-cyan-200' },
+                            financialsSlide: { dot: 'bg-amber-500', ring: 'hover:ring-amber-200' },
+                            askSlide: { dot: 'bg-fuchsia-500', ring: 'hover:ring-fuchsia-200' },
                           };
+                          const accent = slideAccents[key] || { dot: 'bg-slate-400', ring: 'hover:ring-slate-200' };
 
                           return (
                             <div
                               key={key}
-                              className={`rounded-lg p-4 border ${slideColors[key] || 'bg-slate-50 border-slate-200'}`}
+                              className={`group rounded-xl p-4 border border-slate-200 bg-white hover:shadow-md hover:ring-2 ${accent.ring} transition-all`}
                             >
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="w-6 h-6 bg-slate-800 text-white rounded-full flex items-center justify-center text-xs font-bold">
-                                  {slide.slideNumber}
+                                <span className="w-6 h-6 bg-slate-900 text-white rounded-md flex items-center justify-center text-[11px] font-bold font-mono">
+                                  {String(slide.slideNumber).padStart(2, '0')}
                                 </span>
-                                <h4 className="font-semibold text-slate-900 text-sm">{slide.title}</h4>
+                                <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
+                                <h4 className="font-semibold text-slate-900 text-sm truncate flex-1">{slide.title}</h4>
                               </div>
-                              <p className="text-slate-600 text-sm mb-2 line-clamp-3">{slide.content}</p>
+                              <p className="text-slate-600 text-xs leading-relaxed mb-2 line-clamp-3 whitespace-pre-line">{slide.content}</p>
                               {slide.speakerNotes && (
-                                <details className="mt-2">
-                                  <summary className="text-xs text-slate-500 cursor-pointer hover:text-indigo-600">
-                                    View Speaker Notes
+                                <details className="mt-2 pt-2 border-t border-slate-100">
+                                  <summary className="text-[11px] text-slate-500 cursor-pointer hover:text-indigo-600 font-medium inline-flex items-center gap-1">
+                                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                                    </svg>
+                                    Speaker notes
                                   </summary>
-                                  <p className="text-xs text-slate-500 mt-1 bg-white/50 p-2 rounded">
+                                  <p className="text-[11px] text-slate-500 mt-1.5 bg-slate-50 p-2 rounded leading-relaxed">
                                     {slide.speakerNotes}
                                   </p>
                                 </details>
@@ -1515,32 +1816,36 @@ export function IdeaDetailPage() {
 
                     {/* Changelog */}
                     {idea.phase3Data?.changelog && idea.phase3Data.changelog.length > 0 && (
-                      <div className="bg-white rounded-xl border border-slate-200 p-6">
+                      <div className="bg-white rounded-2xl border border-slate-200 p-6">
                         <div className="flex items-center gap-2 mb-4">
-                          <span className="text-2xl">📝</span>
-                          <h3 className="text-lg font-semibold text-slate-900">What Changed</h3>
+                          <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600">
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                              <line x1="10" y1="11" x2="10" y2="17" />
+                              <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                          </div>
+                          <h3 className="text-base font-semibold text-slate-900">What changed</h3>
+                          <span className="ml-2 text-xs text-slate-400 font-mono">{idea.phase3Data.changelog.length} entries</span>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           {idea.phase3Data.changelog.map((entry, idx) => (
                             <div
                               key={idx}
-                              className={`flex items-start gap-3 p-3 rounded-lg ${
-                                entry.changeType === 'added' ? 'bg-green-50' :
-                                entry.changeType === 'modified' ? 'bg-blue-50' :
-                                'bg-red-50'
-                              }`}
+                              className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100"
                             >
-                              <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                entry.changeType === 'added' ? 'bg-green-200 text-green-700' :
-                                entry.changeType === 'modified' ? 'bg-blue-200 text-blue-700' :
-                                'bg-red-200 text-red-700'
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-mono ${
+                                entry.changeType === 'added' ? 'bg-emerald-100 text-emerald-700' :
+                                entry.changeType === 'modified' ? 'bg-blue-100 text-blue-700' :
+                                'bg-rose-100 text-rose-700'
                               }`}>
-                                {entry.changeType.toUpperCase()}
+                                {entry.changeType}
                               </span>
-                              <div>
-                                <p className="text-sm font-medium text-slate-700">{entry.section}</p>
-                                <p className="text-sm text-slate-600">{entry.description}</p>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-slate-900">{entry.section}</p>
+                                <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">{entry.description}</p>
                               </div>
                             </div>
                           ))}
@@ -1549,36 +1854,46 @@ export function IdeaDetailPage() {
                     )}
 
                     {/* Phase 3 Action Buttons */}
-                    <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
-                      <div className="text-sm text-slate-500">
+                    <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                         {idea.phase3Data?.generatedAt && (
-                          <span>Generated: {new Date(idea.phase3Data.generatedAt).toLocaleDateString()}</span>
+                          <span className="inline-flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10" />
+                              <polyline points="12 6 12 12 16 14" />
+                            </svg>
+                            Generated {new Date(idea.phase3Data.generatedAt).toLocaleDateString()}
+                          </span>
                         )}
                         {idea.phase3Data?.confirmedAt && (
-                          <span className="ml-4 text-green-600 font-medium">
-                            Confirmed: {new Date(idea.phase3Data.confirmedAt).toLocaleDateString()}
+                          <span className="inline-flex items-center gap-1.5 text-emerald-600 font-medium">
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            Confirmed {new Date(idea.phase3Data.confirmedAt).toLocaleDateString()}
                           </span>
                         )}
                       </div>
 
-                      <div className="flex gap-3">
-                        {/* PDF Download Button - always visible when Phase 3 data exists */}
+                      <div className="flex flex-wrap gap-2">
                         <button
                           onClick={handleDownloadPhase3PDF}
                           disabled={downloadingPhase3}
-                          className="btn btn-secondary"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:border-slate-300 hover:text-slate-900 transition-colors disabled:opacity-60"
                         >
                           {downloadingPhase3 ? (
                             <>
                               <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                              Downloading...
+                              Downloading…
                             </>
                           ) : (
                             <>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
                               </svg>
-                              Download Pitch Deck
+                              Download pitch deck
                             </>
                           )}
                         </button>
@@ -1588,24 +1903,24 @@ export function IdeaDetailPage() {
                             <button
                               onClick={handleGeneratePhase3}
                               disabled={generatingPhase3}
-                              className="btn btn-secondary"
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:border-slate-300 hover:text-slate-900 transition-colors disabled:opacity-60"
                             >
-                              {generatingPhase3 ? 'Regenerating...' : 'Regenerate'}
+                              {generatingPhase3 ? 'Regenerating…' : 'Regenerate'}
                             </button>
                             <button
                               onClick={handleConfirmPhase3}
                               disabled={confirmingPhase3}
-                              className="btn btn-primary"
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800 transition-colors disabled:opacity-60"
                             >
                               {confirmingPhase3 ? (
                                 <>
                                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                  Confirming...
+                                  Confirming…
                                 </>
                               ) : (
                                 <>
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <polyline points="20 6 9 17 4 12" />
                                   </svg>
                                   Confirm Phase 3
                                 </>
@@ -1615,11 +1930,11 @@ export function IdeaDetailPage() {
                         )}
 
                         {phase3Status === 'confirmed' && (
-                          <div className="flex items-center gap-2 text-green-600 font-medium">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-semibold">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                              <polyline points="20 6 9 17 4 12" />
                             </svg>
-                            Validation Complete!
+                            Validation complete
                           </div>
                         )}
                       </div>
@@ -1627,13 +1942,29 @@ export function IdeaDetailPage() {
 
                     {/* Completion Banner */}
                     {phase3Status === 'confirmed' && (
-                      <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl p-6 text-center text-white">
-                        <div className="text-4xl mb-3">🎉</div>
-                        <h3 className="text-xl font-bold mb-2">Congratulations!</h3>
-                        <p className="text-white/90 max-w-md mx-auto">
-                          Your startup idea has been fully validated through all three phases.
-                          Download your pitch deck and start pitching to investors!
-                        </p>
+                      <div className="relative overflow-hidden rounded-2xl bg-slate-950 text-white border border-white/5 p-8">
+                        <div
+                          className="absolute inset-0 opacity-[0.15]"
+                          style={{
+                            backgroundImage:
+                              'linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)',
+                            backgroundSize: '40px 40px',
+                            maskImage: 'radial-gradient(ellipse 70% 60% at 50% 50%, black 40%, transparent 85%)',
+                          }}
+                        />
+                        <div className="absolute -top-10 -left-10 w-64 h-64 bg-emerald-500/30 rounded-full blur-[90px]" />
+                        <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-teal-500/25 rounded-full blur-[90px]" />
+                        <div className="relative text-center">
+                          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                            <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          </div>
+                          <h3 className="text-2xl font-semibold tracking-tight mb-2">Validation complete</h3>
+                          <p className="text-slate-300 max-w-md mx-auto leading-relaxed">
+                            Your startup idea has been fully validated through all three phases. Download your pitch deck and start pitching.
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
